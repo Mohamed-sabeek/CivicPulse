@@ -1,0 +1,12 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    @apply bg-gray-50 text-gray-900 font-sans;
+  }
+}
+
+@theme {
+  --color-primary: #2563eb;
+  --font-sans: Inter, sans-serif;
+}
