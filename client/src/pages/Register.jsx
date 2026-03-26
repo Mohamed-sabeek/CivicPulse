@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { User, Mail, Lock, ArrowRight, Loader } from 'lucide-react';
 import api from '../utils/api';
+import Navbar from '../components/Navbar';
 
 const Register = () => {
     const [formData, setFormData] = useState({
@@ -41,12 +42,14 @@ const Register = () => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
-            {/* Background decoration */}
-            <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0">
+        <div className="min-h-screen bg-gray-50 flex flex-col">
+            <Navbar />
+            <div className="flex-grow flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+                {/* Background decoration */}
+                <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0">
                 <div className="absolute -top-40 -left-40 w-96 h-96 rounded-full bg-blue-100 opacity-50 blur-3xl"></div>
                 <div className="absolute bottom-0 right-0 w-96 h-96 rounded-full bg-blue-100 opacity-50 blur-3xl"></div>
-            </div>
+                </div>
 
             <div className="max-w-md w-full space-y-8 bg-white p-10 rounded-2xl shadow-xl z-10 border border-gray-100">
                 <div className="text-center">
@@ -191,6 +194,7 @@ const Register = () => {
                     </div>
                 </div>
             </div>
+        </div>
         </div>
     );
 };

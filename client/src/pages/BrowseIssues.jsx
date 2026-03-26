@@ -20,10 +20,8 @@ const BrowseIssues = () => {
         const fetchIssues = async () => {
             try {
                 const res = await api.get('/issues');
-                // Exclude Resolved issues
-                const activeIssues = res.data.filter(issue => issue.status !== 'Resolved');
-                setIssues(activeIssues);
-                setFilteredIssues(activeIssues);
+                setIssues(res.data);
+                setFilteredIssues(res.data);
             } catch (err) {
                 console.error('Error fetching issues:', err);
             } finally {
@@ -44,7 +42,7 @@ const BrowseIssues = () => {
     }, []);
 
     useEffect(() => {
-        let result = [...issues];
+        let result = issues.filter(issue => issue.status !== 'Resolved');
 
         // Search Filter
         if (searchTerm) {
@@ -100,7 +98,7 @@ const BrowseIssues = () => {
             <main className="flex-grow py-12 px-4 sm:px-6 lg:px-8">
                 <div className="max-w-7xl mx-auto">
                     <div className="text-center mb-12">
-                        <h1 className="text-4xl font-bold text-gray-900 mb-4">Browse Community Issues</h1>
+                        <h1 className="text-4xl font-bold text-gray-900 mb-4">Issues</h1>
                         <p className="text-xl text-gray-600">Discover and track local issues reported by your neighbors.</p>
                     </div>
 
@@ -180,8 +178,9 @@ const BrowseIssues = () => {
                                             <div className="flex items-center space-x-4">
                                                 <button
                                                     onClick={(e) => handleVote(e, issue._id)}
-                                                    className={`flex items-center transition-colors ${user && issue.upvotes.includes(user._id) ? 'text-primary' : 'text-gray-600 hover:text-primary'}`}
-                                                    title="Upvote"
+                                                    disabled={issue.status === 'Resolved'}
+                                                    className={`flex items-center transition-colors ${issue.status === 'Resolved' ? 'text-gray-400 cursor-not-allowed' : user && issue.upvotes.includes(user._id) ? 'text-primary' : 'text-gray-600 hover:text-primary'}`}
+                                                    title={issue.status === 'Resolved' ? "Voting is disabled for resolved issues" : "Upvote"}
                                                 >
                                                     <ArrowUp size={18} className={`mr-1 ${user && issue.upvotes.includes(user._id) ? 'fill-current' : ''}`} />
                                                     <span className="font-medium">{issue.upvotes ? issue.upvotes.length : 0}</span>

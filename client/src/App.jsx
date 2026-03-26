@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
 import HowItWorks from './components/HowItWorks';
@@ -34,13 +34,7 @@ function App() {
       <Routes>
         <Route
           path="/"
-          element={
-            localStorage.getItem('token') ? (
-              <Navigate to="/dashboard" replace />
-            ) : (
-              <LandingPage />
-            )
-          }
+          element={<LandingPage />}
         />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
@@ -62,4 +56,3 @@ function App() {
 }
 
 export default App;
-

@@ -7,6 +7,7 @@ const Navbar = () => {
     const navigate = useNavigate();
     const [user, setUser] = useState(null);
     const token = localStorage.getItem('token');
+    const isAdmin = user?.role === 'admin';
 
     React.useEffect(() => {
         if (token) {
@@ -59,7 +60,7 @@ const Navbar = () => {
                                 <button onClick={handleScroll} className="text-gray-600 hover:text-primary transition-colors">How It Works</button>
                             </>
                         )}
-                        <Link to="/issues" className="text-gray-600 hover:text-primary transition-colors">Browse Issues</Link>
+                        <Link to="/issues" className="text-gray-600 hover:text-primary transition-colors">Issues</Link>
                         <Link to="/resolved" className="text-gray-600 hover:text-primary transition-colors">Resolved Issues</Link>
                         <div className="flex items-center space-x-4">
                             {token ? (
@@ -67,7 +68,9 @@ const Navbar = () => {
                                     {user && user.role === 'admin' && (
                                         <Link to="/admin" className="text-gray-600 hover:text-primary transition-colors font-semibold text-blue-600">Admin</Link>
                                     )}
-                                    <Link to="/dashboard" className="text-gray-600 hover:text-primary transition-colors">Dashboard</Link>
+                                    {!isAdmin && (
+                                        <Link to="/dashboard" className="text-gray-600 hover:text-primary transition-colors">Dashboard</Link>
+                                    )}
                                     <button onClick={handleLogout} className="px-4 py-2 text-primary border border-primary rounded-lg hover:bg-blue-50 transition-colors">
                                         Logout
                                     </button>
@@ -107,7 +110,7 @@ const Navbar = () => {
                                 <button onClick={(e) => { handleScroll(e); setIsOpen(false); }} className="block w-full text-left px-3 py-2 text-gray-600 hover:text-primary hover:bg-blue-50 rounded-md">How It Works</button>
                             </>
                         )}
-                        <Link to="/issues" className="block px-3 py-2 text-gray-600 hover:text-primary hover:bg-blue-50 rounded-md">Browse Issues</Link>
+                        <Link to="/issues" className="block px-3 py-2 text-gray-600 hover:text-primary hover:bg-blue-50 rounded-md">Issues</Link>
                         <Link to="/resolved" className="block px-3 py-2 text-gray-600 hover:text-primary hover:bg-blue-50 rounded-md">Resolved Issues</Link>
                         <div className="pt-4 pb-3 border-t border-gray-100">
                             {token ? (
@@ -115,7 +118,9 @@ const Navbar = () => {
                                     {user && user.role === 'admin' && (
                                         <Link to="/admin" className="block px-3 py-2 text-primary font-semibold hover:bg-gray-50 rounded-md">Admin Dashboard</Link>
                                     )}
-                                    <Link to="/dashboard" className="block px-3 py-2 text-gray-600 hover:bg-gray-50 rounded-md">Dashboard</Link>
+                                    {!isAdmin && (
+                                        <Link to="/dashboard" className="block px-3 py-2 text-gray-600 hover:bg-gray-50 rounded-md">Dashboard</Link>
+                                    )}
                                     <button onClick={handleLogout} className="w-full px-4 py-2 text-primary border border-primary rounded-lg hover:bg-blue-50 transition-colors">
                                         Logout
                                     </button>

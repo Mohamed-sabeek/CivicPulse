@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import api from '../utils/api';
-import { Users, FileText, CheckCircle, AlertCircle, TrendingUp, Trash2, Edit } from 'lucide-react';
+import { Users, FileText, CheckCircle, AlertCircle, TrendingUp, Trash2, Edit, ArrowRight } from 'lucide-react';
 
 const AdminDashboard = () => {
     const [user, setUser] = useState(null);
@@ -12,6 +12,7 @@ const AdminDashboard = () => {
         totalUsers: 0,
         totalIssues: 0,
         openIssues: 0,
+        inProgressIssues: 0,
         resolvedIssues: 0
     });
     const [issues, setIssues] = useState([]);
@@ -85,9 +86,9 @@ const AdminDashboard = () => {
 
     const getStatusBadge = (status) => {
         switch (status) {
-            case 'Resolved': return 'bg-green-100 text-green-800';
-            case 'In Progress': return 'bg-blue-100 text-blue-800';
-            default: return 'bg-yellow-100 text-yellow-800';
+            case 'Resolved': return 'bg-green-100 text-green-800 border-green-200 shadow-sm';
+            case 'In Progress': return 'bg-blue-100 text-blue-800 border-blue-200 shadow-sm';
+            default: return 'bg-yellow-100 text-yellow-800 border-yellow-200 shadow-sm';
         }
     };
 
@@ -96,6 +97,7 @@ const AdminDashboard = () => {
         { title: 'Total Users', value: stats.totalUsers, icon: Users, color: 'bg-blue-500' },
         { title: 'Total Issues', value: stats.totalIssues, icon: FileText, color: 'bg-purple-500' },
         { title: 'Open Issues', value: stats.openIssues, icon: AlertCircle, color: 'bg-yellow-500' },
+        { title: 'In Progress', value: stats.inProgressIssues || 0, icon: TrendingUp, color: 'bg-cyan-500' },
         { title: 'Resolved Issues', value: stats.resolvedIssues, icon: CheckCircle, color: 'bg-green-500' },
     ];
 
@@ -111,7 +113,7 @@ const AdminDashboard = () => {
                     </div>
 
                     {/* Analytics Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
                         {analytics.map((item, index) => (
                             <div key={index} className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 flex items-center">
                                 <div className={`p-4 rounded-full ${item.color} bg-opacity-10 mr-4`}>
@@ -142,7 +144,7 @@ const AdminDashboard = () => {
                                     </tr>
                                 </thead>
                                 <tbody className="bg-white divide-y divide-gray-200">
-                                    {issues.map((issue) => (
+                                    {issues.filter(issue => issue.status !== 'Resolved').map((issue) => (
                                         <tr key={issue._id} className="hover:bg-gray-50 transition-colors">
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <div className="text-sm font-medium text-gray-900">{issue.title}</div>
@@ -151,15 +153,32 @@ const AdminDashboard = () => {
                                                 <div className="text-sm text-gray-500">{issue.category}</div>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
-                                                <select
-                                                    value={issue.status}
-                                                    onChange={(e) => handleStatusUpdate(issue._id, e.target.value)}
-                                                    className={`text-xs font-semibold rounded-full px-2 py-1 border-0 focus:ring-2 focus:ring-primary cursor-pointer ${getStatusBadge(issue.status)}`}
-                                                >
-                                                    <option value="Open">Open</option>
-                                                    <option value="In Progress">In Progress</option>
-                                                    <option value="Resolved">Resolved</option>
-                                                </select>
+                                                <div className="flex items-center gap-3">
+                                                    <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold border ${getStatusBadge(issue.status)}`}>
+                                                        {issue.status === 'Resolved' && <CheckCircle size={14} className="mr-1.5" />}
+                                                        {issue.status === 'In Progress' && <TrendingUp size={14} className="mr-1.5" />}
+                                                        {issue.status === 'Open' && <AlertCircle size={14} className="mr-1.5" />}
+                                                        {issue.status.toUpperCase()}
+                                                    </span>
+                                                    
+                                                    {issue.status === 'Open' && (
+                                                        <button
+                                                            onClick={() => handleStatusUpdate(issue._id, 'In Progress')}
+                                                            className="flex items-center gap-1 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-600 hover:text-white px-3 py-1.5 rounded-lg transition-all border border-blue-200 hover:border-blue-600 shadow-sm"
+                                                        >
+                                                            START PROGRESS <ArrowRight size={14} />
+                                                        </button>
+                                                    )}
+                                                    
+                                                    {issue.status === 'In Progress' && (
+                                                        <button
+                                                            onClick={() => handleStatusUpdate(issue._id, 'Resolved')}
+                                                            className="flex items-center gap-1 text-xs font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-600 hover:text-white px-3 py-1.5 rounded-lg transition-all border border-emerald-200 hover:border-emerald-600 shadow-sm"
+                                                        >
+                                                            RESOLVE <CheckCircle size={14} />
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                                 {new Date(issue.createdAt).toLocaleDateString()}

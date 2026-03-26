@@ -67,6 +67,10 @@ router.put('/:id/vote', auth, async (req, res) => {
     try {
         const issue = await Issue.findById(req.params.id);
 
+        if (issue.status === 'Resolved') {
+            return res.status(400).json({ msg: 'Cannot vote on a resolved issue' });
+        }
+
         // Check if the issue has already been upvoted
         if (issue.upvotes.filter(vote => vote.toString() === req.user.id).length > 0) {
             // Remove upvote
@@ -127,8 +131,8 @@ router.put('/:id/status', [auth, admin], async (req, res) => {
 
 // @route   DELETE api/issues/:id
 // @desc    Delete issue
-// @access  Private/Admin
-router.delete('/:id', [auth, admin], async (req, res) => {
+// @access  Private (Owner or Admin)
+router.delete('/:id', auth, async (req, res) => {
     try {
         const issue = await Issue.findById(req.params.id);
 
@@ -136,7 +140,12 @@ router.delete('/:id', [auth, admin], async (req, res) => {
             return res.status(404).json({ msg: 'Issue not found' });
         }
 
-        await issue.remove();
+        // Check if user is owner or admin
+        if (issue.createdBy.toString() !== req.user.id && req.user.role !== 'admin') {
+            return res.status(401).json({ msg: 'Not authorized' });
+        }
+
+        await issue.deleteOne();
 
         res.json({ msg: 'Issue removed' });
     } catch (err) {

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Mail, Lock, ArrowRight, Loader } from 'lucide-react';
 import api from '../utils/api';
+import Navbar from '../components/Navbar';
 
 const Login = () => {
     const [formData, setFormData] = useState({
@@ -23,8 +24,22 @@ const Login = () => {
         setError('');
         try {
             const res = await api.post('/auth/login', formData);
-            localStorage.setItem('token', res.data.token);
-            navigate('/dashboard');
+            const token = res.data.token;
+            localStorage.setItem('token', token);
+
+            let role = null;
+            try {
+                const base64Url = token.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const jsonPayload = decodeURIComponent(atob(base64).split('').map(function (c) {
+                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                }).join(''));
+                role = JSON.parse(jsonPayload)?.user?.role;
+            } catch (decodeErr) {
+                console.error('Failed to decode token role', decodeErr);
+            }
+
+            navigate(role === 'admin' ? '/admin' : '/dashboard');
         } catch (err) {
             setError(err.response?.data?.msg || 'Login failed. Please check your credentials.');
         } finally {
@@ -33,12 +48,14 @@ const Login = () => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
-            {/* Background decoration */}
-            <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0">
+        <div className="min-h-screen bg-gray-50 flex flex-col">
+            <Navbar />
+            <div className="flex-grow flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+                {/* Background decoration */}
+                <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0">
                 <div className="absolute -top-40 -right-40 w-96 h-96 rounded-full bg-blue-100 opacity-50 blur-3xl"></div>
                 <div className="absolute -bottom-40 -left-40 w-96 h-96 rounded-full bg-blue-100 opacity-50 blur-3xl"></div>
-            </div>
+                </div>
 
             <div className="max-w-md w-full space-y-8 bg-white p-10 rounded-2xl shadow-xl z-10 border border-gray-100">
                 <div className="text-center">
@@ -154,13 +171,14 @@ const Login = () => {
                         </div>
                     </div>
 
-                    <div className="mt-6 text-center">
+                                        <div className="mt-6 text-center">
                         <Link to="/register" className="font-medium text-primary hover:text-blue-700 flex items-center justify-center gap-1 transition-colors">
                             Create an account <ArrowRight size={16} />
                         </Link>
                     </div>
                 </div>
             </div>
+        </div>
         </div>
     );
 };

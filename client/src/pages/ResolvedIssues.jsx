@@ -12,6 +12,7 @@ const ResolvedIssues = () => {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [category, setCategory] = useState('All');
+    const [ownershipFilter, setOwnershipFilter] = useState('All');
     const [sortBy, setSortBy] = useState('Most Recent');
     const [user, setUser] = useState(null);
     const navigate = useNavigate();
@@ -46,6 +47,13 @@ const ResolvedIssues = () => {
     useEffect(() => {
         let result = [...issues];
 
+        // Ownership Filter
+        if (ownershipFilter === 'My Resolved Issues' && user) {
+            result = result.filter(issue => issue.createdBy === user._id);
+        } else if (ownershipFilter === 'Other Resolved Issues' && user) {
+            result = result.filter(issue => issue.createdBy !== user._id);
+        }
+
         // Search Filter
         if (searchTerm) {
             result = result.filter(issue =>
@@ -67,7 +75,7 @@ const ResolvedIssues = () => {
         }
 
         setFilteredIssues(result);
-    }, [issues, searchTerm, category, sortBy]);
+    }, [issues, searchTerm, category, sortBy, ownershipFilter, user]);
 
     const handleVote = async (e, id) => {
         e.preventDefault();
@@ -113,7 +121,19 @@ const ResolvedIssues = () => {
                                 />
                             </div>
 
-                            <div className="flex gap-4 w-full md:w-auto">
+                            <div className="flex flex-wrap gap-4 w-full md:w-auto">
+                                {user && (
+                                    <select
+                                        className="px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-primary focus:border-transparent cursor-pointer"
+                                        value={ownershipFilter}
+                                        onChange={(e) => setOwnershipFilter(e.target.value)}
+                                        title="Filter by Ownership"
+                                    >
+                                        <option value="All">All Resolved Issues</option>
+                                        <option value="My Resolved Issues">My Resolved Issues</option>
+                                        <option value="Other Resolved Issues">Other Resolved Issues</option>
+                                    </select>
+                                )}
                                 <select
                                     className="px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-primary focus:border-transparent cursor-pointer"
                                     value={category}
@@ -173,14 +193,13 @@ const ResolvedIssues = () => {
 
                                         <div className="flex items-center justify-between border-t border-gray-100 pt-4 mt-auto">
                                             <div className="flex items-center space-x-4">
-                                                <button
-                                                    onClick={(e) => handleVote(e, issue._id)}
-                                                    className={`flex items-center transition-colors ${user && issue.upvotes.includes(user._id) ? 'text-primary' : 'text-gray-600 hover:text-primary'}`}
-                                                    title="Upvote"
+                                                <div
+                                                    className={`flex items-center ${user && issue.upvotes.includes(user._id) ? 'text-primary' : 'text-gray-500 cursor-not-allowed'}`}
+                                                    title="Voting is disabled for resolved issues"
                                                 >
                                                     <ArrowUp size={18} className={`mr-1 ${user && issue.upvotes.includes(user._id) ? 'fill-current' : ''}`} />
                                                     <span className="font-medium">{issue.upvotes ? issue.upvotes.length : 0}</span>
-                                                </button>
+                                                </div>
                                                 <Link to={`/issues/${issue._id}`} className="flex items-center text-gray-600 hover:text-primary transition-colors" title="Comments">
                                                     <MessageSquare size={18} className="mr-1" />
                                                     <span className="font-medium">{issue.comments ? issue.comments.length : 0}</span>

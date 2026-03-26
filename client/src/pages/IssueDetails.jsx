@@ -161,7 +161,9 @@ const IssueDetails = () => {
                                     <div className="flex items-center space-x-8">
                                         <button
                                             onClick={handleVote}
-                                            className={`flex items-center transition-colors ${user && issue.upvotes.includes(user._id) ? 'text-primary' : 'text-gray-700 hover:text-primary'}`}
+                                            disabled={issue.status === 'Resolved'}
+                                            className={`flex items-center transition-colors ${issue.status === 'Resolved' ? 'text-gray-400 cursor-not-allowed' : user && issue.upvotes.includes(user._id) ? 'text-primary' : 'text-gray-700 hover:text-primary'}`}
+                                            title={issue.status === 'Resolved' ? "Voting is disabled for resolved issues" : "Upvote"}
                                         >
                                             <ArrowUp size={24} className={`mr-2 ${user && issue.upvotes.includes(user._id) ? 'fill-current' : ''}`} />
                                             <span className="text-lg font-bold">{issue.upvotes ? issue.upvotes.length : 0} <span className="text-gray-500 font-normal text-base ml-1">Upvotes</span></span>
@@ -186,7 +188,7 @@ const IssueDetails = () => {
                                     <div key={idx} className="bg-gray-50 p-4 rounded-xl border border-gray-100">
                                         <p className="text-gray-800">{comment.text}</p>
                                         <p className="text-xs text-gray-500 mt-2">
-                                            {comment.date ? new Date(comment.date).toLocaleDateString() : 'Just now'}
+                                            {comment.createdAt ? new Date(comment.createdAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'Just now'}
                                         </p>
                                     </div>
                                 ))

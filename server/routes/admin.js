@@ -13,12 +13,14 @@ router.get('/stats', [auth, admin], async (req, res) => {
         const totalUsers = await User.countDocuments();
         const totalIssues = await Issue.countDocuments();
         const openIssues = await Issue.countDocuments({ status: 'Open' });
+        const inProgressIssues = await Issue.countDocuments({ status: 'In Progress' });
         const resolvedIssues = await Issue.countDocuments({ status: 'Resolved' });
 
         res.json({
             totalUsers,
             totalIssues,
             openIssues,
+            inProgressIssues,
             resolvedIssues
         });
     } catch (err) {
@@ -37,6 +39,11 @@ router.put('/issues/:id/status', [auth, admin], async (req, res) => {
 
         if (!issue) {
             return res.status(404).json({ msg: 'Issue not found' });
+        }
+
+        const statusOrder = { 'Open': 0, 'In Progress': 1, 'Resolved': 2 };
+        if (statusOrder[status] < statusOrder[issue.status]) {
+            return res.status(400).json({ msg: 'Status progression cannot be reversed' });
         }
 
         issue.status = status;
