@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, ArrowUp, MessageSquare, Search, Filter } from 'lucide-react';
+import { MapPin, Search, Filter, ThumbsUp, ArrowRight, AlertCircle } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
+import SkeletonCard from '../components/SkeletonCard';
 import Footer from '../components/Footer';
 import api from '../utils/api';
 import { ISSUE_CATEGORIES } from '../constants/issueOptions';
@@ -12,16 +13,16 @@ const BrowseIssues = () => {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [category, setCategory] = useState('All');
-    const [sortBy, setSortBy] = useState('Most Recent');
+    const [sortBy, setSortBy] = useState('Most Supported');
     const [user, setUser] = useState(null);
     const navigate = useNavigate();
 
     useEffect(() => {
         const fetchIssues = async () => {
             try {
-                const res = await api.get('/issues');
-                setIssues(res.data);
-                setFilteredIssues(res.data);
+                const res = await api.get('/issues?limit=100');
+                setIssues(res.data.issues);
+                setFilteredIssues(res.data.issues);
             } catch (err) {
                 console.error('Error fetching issues:', err);
             } finally {
@@ -48,7 +49,8 @@ const BrowseIssues = () => {
         if (searchTerm) {
             result = result.filter(issue =>
                 issue.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                issue.description.toLowerCase().includes(searchTerm.toLowerCase())
+                issue.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (issue.location && issue.location.toLowerCase().includes(searchTerm.toLowerCase()))
             );
         }
 
@@ -57,25 +59,31 @@ const BrowseIssues = () => {
             result = result.filter(issue => issue.category === category);
         }
 
-        // Sort Logic
-        if (sortBy === 'Most Recent') {
+        // Sort Logic: Most Supported (Highest Upvotes) by default
+        if (sortBy === 'Most Supported' || sortBy === 'Most Upvoted') {
+            result.sort((a, b) => {
+                const upvotesA = Array.isArray(a.upvotes) ? a.upvotes.length : 0;
+                const upvotesB = Array.isArray(b.upvotes) ? b.upvotes.length : 0;
+                if (upvotesB !== upvotesA) {
+                    return upvotesB - upvotesA;
+                }
+                return new Date(b.createdAt) - new Date(a.createdAt);
+            });
+        } else if (sortBy === 'Most Recent') {
             result.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-        } else if (sortBy === 'Most Upvoted') {
-            result.sort((a, b) => b.upvotes.length - a.upvotes.length);
         }
 
         setFilteredIssues(result);
     }, [issues, searchTerm, category, sortBy]);
 
-    const handleVote = async (e, id) => {
-        e.preventDefault(); // Prevent navigation if clicked on card
+    const handleVote = async (id) => {
         if (!user) {
             navigate('/login');
             return;
         }
         try {
             const res = await api.put(`/issues/${id}/vote`);
-            setIssues(issues.map(issue =>
+            setIssues(prevIssues => prevIssues.map(issue =>
                 issue._id === id ? { ...issue, upvotes: res.data } : issue
             ));
         } catch (err) {
@@ -85,43 +93,42 @@ const BrowseIssues = () => {
 
     const getStatusColor = (status) => {
         switch (status) {
-            case 'Resolved': return 'bg-green-100 text-green-800';
-            case 'In Progress': return 'bg-blue-100 text-blue-800';
-            default: return 'bg-yellow-100 text-yellow-800';
+            case 'Resolved': return 'bg-emerald-50 text-emerald-600 border-emerald-100';
+            case 'In Progress': return 'bg-blue-50 text-blue-600 border-blue-100';
+            default: return 'bg-amber-50 text-amber-600 border-amber-100';
         }
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 flex flex-col">
+        <div className="min-h-screen bg-gray-50 flex flex-col pt-24">
             <Navbar />
 
             <main className="flex-grow py-12 px-4 sm:px-6 lg:px-8">
                 <div className="max-w-7xl mx-auto">
-                    <div className="text-center mb-12">
-                        <h1 className="text-4xl font-bold text-gray-900 mb-4">Issues</h1>
-                        <p className="text-xl text-gray-600">Discover and track local issues reported by your neighbors.</p>
+                    <div className="text-center mb-16">
+                        <h1 className="text-5xl font-black text-gray-900 mb-4 tracking-tight">Community Feed</h1>
+                        <p className="text-lg text-gray-500 font-medium max-w-2xl mx-auto">Discover and track local issues reported by your neighbors. Together, we can make a difference.</p>
                     </div>
 
                     {/* Filters and Search */}
-                    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-8">
-                        <div className="flex flex-col md:flex-row gap-4 justify-between items-center">
-                            <div className="relative w-full md:w-96">
-                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                    <div className="bg-white p-6 rounded-[2rem] shadow-xl shadow-indigo-100/20 border border-gray-100 mb-12">
+                        <div className="flex flex-col lg:flex-row gap-6 justify-between items-center">
+                            <div className="relative w-full lg:w-[30rem]">
+                                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
                                 <input
                                     type="text"
-                                    placeholder="Search issues..."
-                                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                                    placeholder="Search by title, description or location..."
+                                    className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:bg-white focus:outline-none transition-all font-medium"
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                 />
                             </div>
 
-                            <div className="flex gap-4 w-full md:w-auto">
+                            <div className="flex flex-wrap gap-4 w-full lg:w-auto">
                                 <select
-                                    className="px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-primary focus:border-transparent cursor-pointer"
+                                    className="px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:bg-white focus:outline-none transition-all font-bold text-gray-600 cursor-pointer text-sm"
                                     value={category}
                                     onChange={(e) => setCategory(e.target.value)}
-                                    title="Filter by Category"
                                 >
                                     <option value="All">All Categories</option>
                                     {ISSUE_CATEGORIES.map((cat) => (
@@ -130,13 +137,12 @@ const BrowseIssues = () => {
                                 </select>
 
                                 <select
-                                    className="px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-primary focus:border-transparent cursor-pointer"
+                                    className="px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:bg-white focus:outline-none transition-all font-bold text-gray-600 cursor-pointer text-sm"
                                     value={sortBy}
                                     onChange={(e) => setSortBy(e.target.value)}
-                                    title="Sort Issues"
                                 >
+                                    <option value="Most Supported">Most Supported (Highest Upvotes)</option>
                                     <option value="Most Recent">Most Recent</option>
-                                    <option value="Most Upvoted">Most Upvoted</option>
                                 </select>
                             </div>
                         </div>
@@ -144,68 +150,68 @@ const BrowseIssues = () => {
 
                     {/* Issues Grid */}
                     {loading ? (
-                        <div className="text-center py-12">
-                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                            {[1, 2, 3, 4, 5, 6].map(i => <SkeletonCard key={i} />)}
                         </div>
                     ) : filteredIssues.length > 0 ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                             {filteredIssues.map((issue) => (
-                                <div key={issue._id} className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow flex flex-col">
-                                    {issue.imageUrl ? (
-                                        <img src={issue.imageUrl} alt={issue.title} className="h-48 w-full object-cover" />
-                                    ) : (
-                                        <div className="h-48 bg-gray-100 w-full object-cover flex items-center justify-center text-gray-400">
-                                            <span>No Image</span>
-                                        </div>
-                                    )}
-                                    <div className="p-6 flex-grow flex flex-col">
-                                        <div className="flex justify-between items-start mb-4">
-                                            <span className="px-3 py-1 bg-gray-100 text-xs font-medium text-gray-600 rounded-full">
+                                <div
+                                    key={issue._id}
+                                    className="group bg-white rounded-[2.5rem] border border-gray-100 overflow-hidden shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 flex flex-col"
+                                >
+                                    <div className="relative h-60 overflow-hidden">
+                                        {issue.imageUrl ? (
+                                            <img
+                                                src={issue.imageUrl}
+                                                alt={issue.title}
+                                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                                                loading="lazy"
+                                            />
+                                        ) : (
+                                            <div className="w-full h-full bg-gray-50 flex items-center justify-center text-gray-200">
+                                                <AlertCircle size={64} />
+                                            </div>
+                                        )}
+                                        <div className="absolute top-6 left-6">
+                                            <span className="px-4 py-2 bg-white/90 backdrop-blur-md text-indigo-600 text-[10px] font-black uppercase tracking-widest rounded-xl shadow-sm border border-indigo-50">
                                                 {issue.category}
                                             </span>
-                                            <span className={`px-3 py-1 text-xs font-medium rounded-full ${getStatusColor(issue.status)}`}>
+                                        </div>
+                                    </div>
+
+                                    <div className="p-8 flex-grow flex flex-col">
+                                        <div className="flex justify-between items-center mb-4">
+                                            <span className={`px-4 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-full border ${getStatusColor(issue.status)}`}>
                                                 {issue.status}
                                             </span>
-                                        </div>
-                                        <h3 className="text-xl font-bold text-gray-900 mb-2 truncate">{issue.title}</h3>
-                                        <p className="text-gray-600 text-sm mb-4 line-clamp-2 flex-grow">{issue.description}</p>
-                                        <div className="flex items-center text-gray-500 text-sm mb-6">
-                                            <MapPin size={16} className="mr-1" />
-                                            <span className="truncate">{issue.location}</span>
-                                        </div>
-
-                                        <div className="flex items-center justify-between border-t border-gray-100 pt-4 mt-auto">
-                                            <div className="flex items-center space-x-4">
-                                                <button
-                                                    onClick={(e) => handleVote(e, issue._id)}
-                                                    disabled={issue.status === 'Resolved'}
-                                                    className={`flex items-center transition-colors ${issue.status === 'Resolved' ? 'text-gray-400 cursor-not-allowed' : user && issue.upvotes.includes(user._id) ? 'text-primary' : 'text-gray-600 hover:text-primary'}`}
-                                                    title={issue.status === 'Resolved' ? "Voting is disabled for resolved issues" : "Upvote"}
-                                                >
-                                                    <ArrowUp size={18} className={`mr-1 ${user && issue.upvotes.includes(user._id) ? 'fill-current' : ''}`} />
-                                                    <span className="font-medium">{issue.upvotes ? issue.upvotes.length : 0}</span>
-                                                </button>
-                                                <Link to={`/issues/${issue._id}`} className="flex items-center text-gray-600 hover:text-primary transition-colors" title="Comments">
-                                                    <MessageSquare size={18} className="mr-1" />
-                                                    <span className="font-medium">{issue.comments ? issue.comments.length : 0}</span>
-                                                </Link>
-                                            </div>
-                                            <span className="text-sm text-gray-400">
+                                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
                                                 {new Date(issue.createdAt).toLocaleDateString()}
                                             </span>
                                         </div>
 
-                                        {/* Since we don't have a single issue view page yet, maybe direct to dashboard or just keep it view only for now? 
-                                            The prompt asked for a "View Details" button. 
-                                            Assuming it goes to a details page which might not exist or we can link to /dashboard if logged in?
-                                            Let's put a placeholder button for now or link to /issues/id if we had it.
-                                            For now, I'll just make it a non-functional button or link to dashboard if logged in.
-                                            Actually, I'll omit the link destination or point it to # for now as specific issue details page wasn't explicitly requested to be built in this step.
-                                            Wait, prompt says "View Details button". I'll add the button.
-                                        */}
-                                        <div className="mt-4 pt-4 border-t border-gray-100">
-                                            <Link to={`/issues/${issue._id}`} className="block w-full text-center py-2 text-primary border border-primary rounded-lg hover:bg-blue-50 transition-colors text-sm font-semibold">
-                                                View Details
+                                        <h3 className="text-2xl font-black text-gray-900 mb-3 line-clamp-1 group-hover:text-indigo-600 transition-colors">{issue.title}</h3>
+                                        <p className="text-gray-500 text-sm font-medium mb-8 line-clamp-2 leading-relaxed">{issue.description}</p>
+
+                                        <div className="flex items-center text-gray-400 text-xs font-bold uppercase tracking-widest mb-8">
+                                            <MapPin size={16} className="mr-2 text-indigo-400" />
+                                            <span className="truncate">{issue.location}</span>
+                                        </div>
+
+                                        <div className="mt-auto pt-6 border-t border-gray-50 flex justify-between items-center">
+                                            <button
+                                                onClick={() => handleVote(issue._id)}
+                                                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all active:scale-90 ${user && issue.upvotes?.includes(user._id) ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
+                                            >
+                                                <ThumbsUp size={16} className={user && issue.upvotes?.includes(user._id) ? 'fill-current' : ''} />
+                                                <span>{issue.upvotes?.length || 0}</span>
+                                            </button>
+                                            
+                                            <Link 
+                                                to={`/issues/${issue._id}`} 
+                                                className="inline-flex items-center gap-2 text-xs font-black text-indigo-600 uppercase tracking-widest hover:gap-3 transition-all"
+                                            >
+                                                Details <ArrowRight size={16} />
                                             </Link>
                                         </div>
                                     </div>
@@ -213,10 +219,12 @@ const BrowseIssues = () => {
                             ))}
                         </div>
                     ) : (
-                        <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
-                            <Filter size={48} className="mx-auto text-gray-300 mb-4" />
-                            <h3 className="text-lg font-medium text-gray-900">No issues found</h3>
-                            <p className="text-gray-500 mt-2">Try adjusting your search or filters to find what you're looking for.</p>
+                        <div className="text-center py-24 bg-white rounded-[3rem] border border-gray-100 shadow-sm">
+                            <div className="w-24 h-24 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6 text-gray-300">
+                                <Filter size={48} />
+                            </div>
+                            <h3 className="text-2xl font-black text-gray-900 mb-2">No issues found</h3>
+                            <p className="text-gray-500 font-medium">Try adjusting your filters or search terms to find what you're looking for.</p>
                         </div>
                     )}
                 </div>

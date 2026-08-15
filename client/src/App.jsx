@@ -13,6 +13,7 @@ import Dashboard from './pages/Dashboard';
 import BrowseIssues from './pages/BrowseIssues';
 import IssueDetails from './pages/IssueDetails';
 import AdminDashboard from './pages/AdminDashboard';
+import AdminIssueHistory from './pages/AdminIssueHistory';
 import ResolvedIssues from './pages/ResolvedIssues';
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -41,6 +42,7 @@ function App() {
         <Route path="/issues" element={<BrowseIssues />} />
         <Route path="/issues/:id" element={<IssueDetails />} />
         <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/admin/history" element={<AdminIssueHistory />} />
         <Route path="/resolved" element={<ResolvedIssues />} />
         <Route
           path="/dashboard"

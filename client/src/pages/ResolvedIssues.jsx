@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, ArrowUp, MessageSquare, Search, Filter, CheckCircle } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { MapPin, Search, CheckCircle, Calendar, ArrowRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
+import SkeletonCard from '../components/SkeletonCard';
 import Footer from '../components/Footer';
 import api from '../utils/api';
 import { ISSUE_CATEGORIES } from '../constants/issueOptions';
@@ -15,14 +16,13 @@ const ResolvedIssues = () => {
     const [ownershipFilter, setOwnershipFilter] = useState('All');
     const [sortBy, setSortBy] = useState('Most Recent');
     const [user, setUser] = useState(null);
-    const navigate = useNavigate();
 
     useEffect(() => {
         const fetchIssues = async () => {
             try {
-                const res = await api.get('/issues');
+                const res = await api.get('/issues?limit=100');
                 // Filter only resolved issues initially
-                const resolved = res.data.filter(issue => issue.status === 'Resolved');
+                const resolved = res.data.issues.filter(issue => issue.status === 'Resolved');
                 setIssues(resolved);
                 setFilteredIssues(resolved);
             } catch (err) {
@@ -77,24 +77,8 @@ const ResolvedIssues = () => {
         setFilteredIssues(result);
     }, [issues, searchTerm, category, sortBy, ownershipFilter, user]);
 
-    const handleVote = async (e, id) => {
-        e.preventDefault();
-        if (!user) {
-            navigate('/login');
-            return;
-        }
-        try {
-            const res = await api.put(`/issues/${id}/vote`);
-            setIssues(issues.map(issue =>
-                issue._id === id ? { ...issue, upvotes: res.data } : issue
-            ));
-        } catch (err) {
-            console.error(err);
-        }
-    };
-
     return (
-        <div className="min-h-screen bg-gray-50 flex flex-col">
+        <div className="min-h-screen bg-gray-50 flex flex-col pt-24">
             <Navbar />
 
             <main className="flex-grow py-12 px-4 sm:px-6 lg:px-8">
@@ -161,62 +145,72 @@ const ResolvedIssues = () => {
 
                     {/* Issues Grid */}
                     {loading ? (
-                        <div className="text-center py-12">
-                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                            {[1, 2, 3, 4, 5, 6].map(i => <SkeletonCard key={i} />)}
                         </div>
                     ) : filteredIssues.length > 0 ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                             {filteredIssues.map((issue) => (
-                                <div key={issue._id} className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow flex flex-col">
-                                    {issue.imageUrl ? (
-                                        <img src={issue.imageUrl} alt={issue.title} className="h-48 w-full object-cover" />
-                                    ) : (
-                                        <div className="h-48 bg-gray-100 w-full object-cover flex items-center justify-center text-gray-400">
-                                            <span>No Image</span>
-                                        </div>
-                                    )}
-                                    <div className="p-6 flex-grow flex flex-col">
-                                        <div className="flex justify-between items-start mb-4">
-                                            <span className="px-3 py-1 bg-gray-100 text-xs font-medium text-gray-600 rounded-full">
+                                <Link
+                                    key={issue._id}
+                                    to={`/issues/${issue._id}`}
+                                    className="group bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col"
+                                >
+                                    <div className="relative h-56 overflow-hidden">
+                                        {issue.imageUrl ? (
+                                            <img
+                                                src={issue.imageUrl}
+                                                alt={issue.title}
+                                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                                                loading="lazy"
+                                            />
+                                        ) : (
+                                            <div className="w-full h-full bg-gray-50 flex items-center justify-center text-gray-300 italic">
+                                                No image provided
+                                            </div>
+                                        )}
+                                        <div className="absolute top-4 left-4">
+                                            <span className="px-3 py-1.5 bg-white/90 backdrop-blur-md text-indigo-600 text-xs font-bold rounded-xl shadow-sm border border-indigo-50">
                                                 {issue.category}
                                             </span>
-                                            <span className="px-3 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
+                                        </div>
+                                        <div className="absolute top-4 right-4">
+                                            <div className="p-2 bg-green-500/90 backdrop-blur-md text-white rounded-xl shadow-lg">
+                                                <CheckCircle size={16} />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="p-6 flex-grow flex flex-col">
+                                        <div className="flex justify-between items-center mb-4">
+                                            <span className="px-3 py-1 text-[10px] font-black uppercase tracking-wider rounded-full bg-green-50 text-green-700 border border-green-100 flex items-center gap-1.5 shadow-2xs">
+                                                <CheckCircle size={12} className="text-green-600" />
                                                 Resolved
                                             </span>
+                                            <span className="text-[11px] font-bold text-gray-500 flex items-center gap-1.5 bg-gray-50 px-2.5 py-1 rounded-lg border border-gray-100">
+                                                <Calendar size={12} className="text-emerald-500" />
+                                                {new Date(issue.resolvedAt || issue.updatedAt || issue.createdAt).toLocaleDateString()}
+                                            </span>
                                         </div>
-                                        <h3 className="text-xl font-bold text-gray-900 mb-2 truncate">{issue.title}</h3>
-                                        <p className="text-gray-600 text-sm mb-4 line-clamp-2 flex-grow">{issue.description}</p>
-                                        <div className="flex items-center text-gray-500 text-sm mb-6">
-                                            <MapPin size={16} className="mr-1" />
+
+                                        <h3 className="text-xl font-bold text-gray-900 mb-2 line-clamp-1 group-hover:text-indigo-600 transition-colors">{issue.title}</h3>
+                                        <p className="text-gray-500 text-sm mb-6 line-clamp-2 leading-relaxed">{issue.description}</p>
+
+                                        <div className="flex items-center text-gray-400 text-xs font-medium mb-6">
+                                            <MapPin size={14} className="mr-1.5 text-indigo-400" />
                                             <span className="truncate">{issue.location}</span>
                                         </div>
 
-                                        <div className="flex items-center justify-between border-t border-gray-100 pt-4 mt-auto">
-                                            <div className="flex items-center space-x-4">
-                                                <div
-                                                    className={`flex items-center ${user && issue.upvotes.includes(user._id) ? 'text-primary' : 'text-gray-500 cursor-not-allowed'}`}
-                                                    title="Voting is disabled for resolved issues"
-                                                >
-                                                    <ArrowUp size={18} className={`mr-1 ${user && issue.upvotes.includes(user._id) ? 'fill-current' : ''}`} />
-                                                    <span className="font-medium">{issue.upvotes ? issue.upvotes.length : 0}</span>
-                                                </div>
-                                                <Link to={`/issues/${issue._id}`} className="flex items-center text-gray-600 hover:text-primary transition-colors" title="Comments">
-                                                    <MessageSquare size={18} className="mr-1" />
-                                                    <span className="font-medium">{issue.comments ? issue.comments.length : 0}</span>
-                                                </Link>
-                                            </div>
-                                            <span className="text-sm text-gray-400">
-                                                {new Date(issue.createdAt).toLocaleDateString()}
+                                        <div className="mt-auto pt-4 border-t border-gray-50 flex justify-between items-center">
+                                            <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest flex items-center gap-1">
+                                                <CheckCircle size={12} /> Successfully Fixed
+                                            </span>
+                                            <span className="inline-flex items-center gap-1 text-xs font-black text-indigo-600 uppercase tracking-widest group-hover:translate-x-1 transition-transform">
+                                                View <ArrowRight size={14} />
                                             </span>
                                         </div>
-
-                                        <div className="mt-4 pt-4 border-t border-gray-100">
-                                            <Link to={`/issues/${issue._id}`} className="block w-full text-center py-2 text-primary border border-primary rounded-lg hover:bg-blue-50 transition-colors text-sm font-semibold">
-                                                View Details
-                                            </Link>
-                                        </div>
                                     </div>
-                                </div>
+                                </Link>
                             ))}
                         </div>
                     ) : (

@@ -9,9 +9,11 @@ const app = express();
 connectDB();
 
 // Middleware
-app.use(cors());
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use(cors({
+    origin: ['http://localhost:5177']
+}));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 app.get("/", (req, res) => {
     res.send("API Running...");
@@ -22,7 +24,8 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/issues', require('./routes/issues'));
 app.use('/api/stats', require('./routes/stats'));
 app.use('/api/admin', require('./routes/admin'));
+app.use('/api/notifications', require('./routes/notifications'));
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5004;
 
 app.listen(PORT, () => console.log(`Server started on port ${PORT}`));

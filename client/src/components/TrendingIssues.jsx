@@ -13,7 +13,7 @@ const TrendingIssues = () => {
             try {
                 const res = await api.get('/issues');
                 // Filter out resolved, sort by upvotes, take top 3
-                const sortedIssues = res.data
+                const sortedIssues = res.data.issues
                     .filter(issue => issue.status !== 'Resolved')
                     .sort((a, b) => b.upvotes.length - a.upvotes.length)
                     .slice(0, 3);
@@ -102,8 +102,16 @@ const TrendingIssues = () => {
                                     <div className="flex items-center justify-between border-t border-gray-100 pt-4">
                                         <div className="flex items-center space-x-4">
                                             <button
-                                                onClick={(e) => handleVote(e, issue._id)}
-                                                className={`flex items-center transition-colors ${user && issue.upvotes.includes(user._id) ? 'text-primary' : 'text-gray-600 hover:text-primary'}`}
+                                                onClick={(e) => issue.status !== 'Resolved' && handleVote(e, issue._id)}
+                                                disabled={issue.status === 'Resolved'}
+                                                className={`flex items-center transition-colors ${
+                                                    issue.status === 'Resolved'
+                                                        ? 'text-gray-400 cursor-not-allowed opacity-75'
+                                                        : user && issue.upvotes.includes(user._id)
+                                                        ? 'text-primary'
+                                                        : 'text-gray-600 hover:text-primary'
+                                                }`}
+                                                title={issue.status === 'Resolved' ? 'Resolved issue (voting closed)' : 'Upvote'}
                                             >
                                                 <ArrowUp size={18} className={`mr-1 ${user && issue.upvotes.includes(user._id) ? 'fill-current' : ''}`} />
                                                 <span className="font-medium">{issue.upvotes.length}</span>

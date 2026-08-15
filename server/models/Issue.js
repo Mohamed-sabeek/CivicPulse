@@ -25,6 +25,9 @@ const IssueSchema = new mongoose.Schema({
         enum: ['Open', 'In Progress', 'Resolved'],
         default: 'Open',
     },
+    resolvedAt: {
+        type: Date,
+    },
     upvotes: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',

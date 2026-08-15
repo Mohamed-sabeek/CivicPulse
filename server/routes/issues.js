@@ -3,13 +3,46 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const admin = require('../middleware/admin');
 const Issue = require('../models/Issue');
+const Notification = require('../models/Notification');
+const User = require('../models/User');
 
 // @route   GET api/issues
-// @desc    Get all issues
+// @desc    Get all issues (paginated)
 // @access  Public
 router.get('/', async (req, res) => {
     try {
-        const issues = await Issue.find().sort({ date: -1 });
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 9;
+        const skip = (page - 1) * limit;
+
+        const issues = await Issue.find()
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit)
+            .lean();
+            
+        const total = await Issue.countDocuments();
+
+        res.json({
+            issues,
+            totalPages: Math.ceil(total / limit),
+            currentPage: page,
+            totalIssues: total
+        });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
+// @route   GET api/issues/me
+// @desc    Get current user's issues
+// @access  Private
+router.get('/me', auth, async (req, res) => {
+    try {
+        const issues = await Issue.find({ createdBy: req.user.id })
+            .sort({ createdAt: -1 })
+            .lean();
         res.json(issues);
     } catch (err) {
         console.error(err.message);
@@ -53,6 +86,28 @@ router.post('/', auth, async (req, res) => {
         });
 
         const issue = await newIssue.save();
+
+        // Create in-app admin notification
+        try {
+            const reportingUser = await User.findById(req.user.id).select('name');
+            const userName = reportingUser?.name || 'Citizen';
+
+            await Notification.create({
+                type: 'new_issue',
+                title: 'New Issue Reported',
+                message: `${userName} reported "${title}"`,
+                issueId: issue._id,
+                userId: req.user.id,
+                userName: userName,
+                issueTitle: title,
+                category: category || 'General',
+                location: location || 'Not specified',
+                isRead: false
+            });
+        } catch (notifErr) {
+            console.error('Failed to create admin notification:', notifErr);
+        }
+
         res.json(issue);
     } catch (err) {
         console.error(err.message);
@@ -66,9 +121,12 @@ router.post('/', auth, async (req, res) => {
 router.put('/:id/vote', auth, async (req, res) => {
     try {
         const issue = await Issue.findById(req.params.id);
+        if (!issue) {
+            return res.status(404).json({ msg: 'Issue not found' });
+        }
 
         if (issue.status === 'Resolved') {
-            return res.status(400).json({ msg: 'Cannot vote on a resolved issue' });
+            return res.status(400).json({ msg: 'This issue has been resolved and no longer accepts new interactions.' });
         }
 
         // Check if the issue has already been upvoted
@@ -94,6 +152,13 @@ router.put('/:id/vote', auth, async (req, res) => {
 router.post('/:id/comment', auth, async (req, res) => {
     try {
         const issue = await Issue.findById(req.params.id);
+        if (!issue) {
+            return res.status(404).json({ msg: 'Issue not found' });
+        }
+
+        if (issue.status === 'Resolved') {
+            return res.status(400).json({ msg: 'This issue has been resolved and no longer accepts new interactions.' });
+        }
 
         const newComment = {
             text: req.body.text,
@@ -112,6 +177,8 @@ router.post('/:id/comment', auth, async (req, res) => {
 
 // @route   PUT api/issues/:id/status
 // @desc    Update issue status
+// @route   PUT api/issues/:id/status
+// @desc    Update issue status
 // @access  Private/Admin
 router.put('/:id/status', [auth, admin], async (req, res) => {
     try {
@@ -120,8 +187,56 @@ router.put('/:id/status', [auth, admin], async (req, res) => {
             return res.status(404).json({ msg: 'Issue not found' });
         }
 
-        issue.status = req.body.status;
+        const oldStatus = issue.status;
+        const newStatus = req.body.status;
+
+        // If status is not changing, return immediately
+        if (oldStatus === newStatus) {
+            return res.json(issue);
+        }
+
+        issue.status = newStatus;
+        if (newStatus === 'Resolved' && !issue.resolvedAt) {
+            issue.resolvedAt = new Date();
+        }
         await issue.save();
+
+        // Create targeted in-app notification for the customer who reported the issue
+        try {
+            let notifTitle = '';
+            let notifMessage = '';
+
+            if (oldStatus === 'Open' && newStatus === 'In Progress') {
+                notifTitle = 'Issue In Progress 🛠️';
+                notifMessage = `Your reported issue "${issue.title}" is now being worked on. Our team has started addressing this issue. Thank you for bringing it to our attention.`;
+            } else if (newStatus === 'Resolved') {
+                notifTitle = 'Issue Resolved 🎉';
+                notifMessage = `Your reported issue "${issue.title}" has been resolved. Thank you for bringing this concern to our attention. Your report helped us identify and address the problem. We appreciate your contribution toward improving the community, and we will continue working to prevent similar issues from happening again.`;
+            } else {
+                notifTitle = 'Issue Status Updated';
+                notifMessage = `Your reported issue "${issue.title}" is now marked as "${newStatus}".`;
+            }
+
+            if (issue.createdBy) {
+                await Notification.create({
+                    type: 'ISSUE_STATUS_UPDATE',
+                    recipientRole: 'citizen',
+                    userId: issue.createdBy,
+                    title: notifTitle,
+                    message: notifMessage,
+                    issueId: issue._id,
+                    issueTitle: issue.title,
+                    category: issue.category,
+                    location: issue.location,
+                    oldStatus: oldStatus,
+                    newStatus: newStatus,
+                    isRead: false
+                });
+            }
+        } catch (notifErr) {
+            console.error('Failed to create customer status notification:', notifErr);
+        }
+
         res.json(issue);
     } catch (err) {
         console.error(err.message);
@@ -153,5 +268,6 @@ router.delete('/:id', auth, async (req, res) => {
         res.status(500).send('Server Error');
     }
 });
+
 
 module.exports = router;
