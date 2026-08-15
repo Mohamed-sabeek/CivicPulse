@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { 
     MapPin, ArrowUp, MessageSquare, Calendar, ChevronLeft, CheckCircle, 
     Clock, Send, ThumbsUp, Share2, Lock, Check, Flag, MoreVertical, 
-    AlertTriangle, X, AlertCircle, Image as ImageIcon
+    X, AlertCircle, Image as ImageIcon
 } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
@@ -263,29 +263,31 @@ const IssueDetails = () => {
                             <div className="p-2 bg-white rounded-xl shadow-xs border border-gray-200 mr-2.5 group-hover:bg-indigo-50 group-hover:border-indigo-200 transition-colors">
                                 <ChevronLeft size={16} />
                             </div>
-                            Back to Community Issues
+                            Back to Issues
                         </Link>
                     </div>
 
-                    {/* Centered Two-Column Main Layout Container */}
+                    {/* Strict 2-Column Desktop Grid Container */}
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
                         
                         {/* ========================================================================= */}
-                        {/* LEFT COLUMN: Issue Evidence (Image) */}
+                        {/* LEFT COLUMN: [1] Issue Evidence Image + [2] Issue Information Card       */}
                         {/* ========================================================================= */}
-                        <div className="lg:col-span-6 lg:sticky lg:top-28 space-y-4">
-                            <div className="bg-white rounded-3xl p-3 sm:p-4 border border-gray-100 shadow-sm relative overflow-hidden group">
-                                <div className="w-full h-[22rem] sm:h-[28rem] lg:h-[34rem] rounded-2xl bg-slate-950 flex items-center justify-center relative overflow-hidden">
+                        <div className="lg:col-span-6 xl:col-span-7 space-y-6">
+                            
+                            {/* 1. Issue Evidence Image */}
+                            <div className="bg-white rounded-3xl p-3 sm:p-4 border border-gray-100 shadow-sm overflow-hidden group">
+                                <div className="w-full h-72 sm:h-84 md:h-96 rounded-2xl bg-slate-950 flex items-center justify-center relative overflow-hidden">
                                     {issue.imageUrl ? (
                                         <>
-                                            {/* Blurred background glow for atmosphere */}
+                                            {/* Subtle atmospheric backdrop blur */}
                                             <img 
                                                 src={issue.imageUrl} 
                                                 alt="" 
                                                 aria-hidden="true" 
                                                 className="absolute inset-0 w-full h-full object-cover blur-2xl opacity-25 scale-110 pointer-events-none"
                                             />
-                                            {/* Crisp, contained evidence image with zero stretching */}
+                                            {/* Fully contained evidence image with zero distortion */}
                                             <img 
                                                 src={issue.imageUrl} 
                                                 alt={issue.title} 
@@ -298,19 +300,13 @@ const IssueDetails = () => {
                                                 <ImageIcon size={32} />
                                             </div>
                                             <p className="text-sm font-bold text-gray-300">No evidence image available</p>
-                                            <p className="text-xs text-gray-500 max-w-xs">This community issue was reported without an attached photograph.</p>
+                                            <p className="text-xs text-gray-500 max-w-xs">This community report has no attached photograph.</p>
                                         </div>
                                     )}
                                 </div>
                             </div>
-                        </div>
 
-                        {/* ========================================================================= */}
-                        {/* RIGHT COLUMN: Issue Info, Activity & Community Discussion */}
-                        {/* ========================================================================= */}
-                        <div className="lg:col-span-6 space-y-6">
-                            
-                            {/* Card 1: Issue Info & Description */}
+                            {/* 2. Issue Information Card */}
                             <div className="bg-white rounded-3xl p-6 sm:p-8 border border-gray-100 shadow-sm space-y-6">
                                 
                                 {/* Category & Status Row */}
@@ -321,16 +317,16 @@ const IssueDetails = () => {
                                     {getStatusBadge(issue.status)}
                                 </div>
 
-                                {/* Title */}
+                                {/* Issue Title */}
                                 <div>
-                                    <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-gray-900 tracking-tight leading-tight">
+                                    <h1 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight leading-tight">
                                         {issue.title}
                                     </h1>
                                 </div>
 
                                 {/* Metadata: Location & Dates */}
-                                <div className="flex flex-wrap items-center gap-4 text-xs font-bold text-gray-500 pb-6 border-b border-gray-100">
-                                    <span className="flex items-center gap-1.5 text-gray-700">
+                                <div className="flex flex-wrap items-center gap-4 text-xs font-bold text-gray-500 pb-5 border-b border-gray-100">
+                                    <span className="flex items-center gap-1.5 text-gray-800">
                                         <MapPin size={15} className="text-indigo-600" />
                                         {issue.location || 'Coimbatore'}
                                     </span>
@@ -348,7 +344,7 @@ const IssueDetails = () => {
 
                                 {/* Description Section */}
                                 <div>
-                                    <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">
+                                    <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2">
                                         Description
                                     </h3>
                                     <p className="text-sm sm:text-base text-gray-700 font-medium leading-relaxed whitespace-pre-line">
@@ -356,14 +352,14 @@ const IssueDetails = () => {
                                     </p>
                                 </div>
 
-                                {/* Community Activity & Interactions Row */}
+                                {/* Community Actions Row */}
                                 <div className="pt-6 border-t border-gray-100 flex items-center justify-between gap-4">
-                                    <div className="flex items-center gap-4 sm:gap-6">
-                                        {/* Upvote Button */}
+                                    <div className="flex items-center gap-3 sm:gap-4">
+                                        {/* Upvotes Button */}
                                         <button
                                             onClick={handleVote}
                                             disabled={isResolved}
-                                            className={`flex items-center gap-2.5 px-4 py-2.5 rounded-2xl border transition-all active:scale-95 ${
+                                            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl border transition-all active:scale-95 ${
                                                 isResolved
                                                     ? 'bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed opacity-80'
                                                     : user && issue.upvotes?.includes(user._id)
@@ -404,10 +400,16 @@ const IssueDetails = () => {
                                     </div>
                                 </div>
                             </div>
+                        </div>
 
-                            {/* Card 2: Community Discussion & Comments Feed */}
-                            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-gray-100 shadow-sm space-y-6">
-                                <div className="flex items-center justify-between pb-4 border-b border-gray-100">
+                        {/* ========================================================================= */}
+                        {/* RIGHT COLUMN: Discussion Section Only (Full Height & Sticky on Desktop)  */}
+                        {/* ========================================================================= */}
+                        <div className="lg:col-span-6 xl:col-span-5 lg:sticky lg:top-28">
+                            <div className="bg-white rounded-3xl p-6 sm:p-7 border border-gray-100 shadow-sm flex flex-col h-full lg:max-h-[calc(100vh-8.5rem)] min-h-[540px]">
+                                
+                                {/* Discussion Header */}
+                                <div className="flex items-center justify-between pb-4 border-b border-gray-100 shrink-0">
                                     <div className="flex items-center gap-2.5">
                                         <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
                                             <MessageSquare size={18} />
@@ -421,8 +423,8 @@ const IssueDetails = () => {
                                     </span>
                                 </div>
 
-                                {/* Comments List */}
-                                <div className="space-y-4 max-h-[32rem] overflow-y-auto pr-1 custom-scrollbar">
+                                {/* Comments Feed (Independently Scrollable) */}
+                                <div className="flex-1 overflow-y-auto py-4 space-y-3.5 pr-1 custom-scrollbar">
                                     {issue.comments && issue.comments.length > 0 ? (
                                         issue.comments.map((comment) => {
                                             const authorName = comment.user?.name || (typeof comment.user === 'string' ? 'Citizen' : 'Citizen');
@@ -432,11 +434,11 @@ const IssueDetails = () => {
                                             return (
                                                 <div 
                                                     key={comment._id} 
-                                                    className="bg-gray-50/70 hover:bg-gray-50 p-4 sm:p-5 rounded-2xl border border-gray-100 transition-all relative group"
+                                                    className="bg-gray-50/80 hover:bg-gray-50 p-4 rounded-2xl border border-gray-100 transition-all relative group"
                                                 >
-                                                    <div className="flex items-start justify-between gap-3 mb-2.5">
+                                                    <div className="flex items-start justify-between gap-3 mb-2">
                                                         {/* Avatar & Author Info */}
-                                                        <div className="flex items-center gap-3 min-w-0">
+                                                        <div className="flex items-center gap-2.5 min-w-0">
                                                             <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs text-white shadow-2xs shrink-0 ${
                                                                 isAuthorAdmin
                                                                     ? 'bg-gradient-to-tr from-purple-600 to-indigo-600 shadow-purple-100'
@@ -488,68 +490,70 @@ const IssueDetails = () => {
                                                     </div>
 
                                                     {/* Comment Content */}
-                                                    <p className="text-xs sm:text-sm text-gray-700 font-medium leading-relaxed whitespace-pre-line pl-11">
+                                                    <p className="text-xs sm:text-sm text-gray-700 font-medium leading-relaxed whitespace-pre-line pl-10.5">
                                                         {comment.text}
                                                     </p>
                                                 </div>
                                             );
                                         })
                                     ) : (
-                                        <div className="text-center py-10 bg-gray-50/50 rounded-2xl border-2 border-dashed border-gray-100 space-y-1">
-                                            <MessageSquare size={36} className="mx-auto text-gray-300 mb-2" />
+                                        <div className="h-full min-h-[160px] flex flex-col items-center justify-center text-center p-6 bg-gray-50/50 rounded-2xl border-2 border-dashed border-gray-100 space-y-1">
+                                            <MessageSquare size={32} className="text-gray-300 mb-1" />
                                             <p className="text-gray-500 font-bold text-xs">No comments yet</p>
                                             <p className="text-[11px] text-gray-400">Be the first citizen to join the discussion.</p>
                                         </div>
                                     )}
                                 </div>
 
-                                {/* Comment Input Box / Resolved Banner */}
-                                {isResolved ? (
-                                    <div className="bg-emerald-50/60 border border-emerald-100 rounded-2xl p-4 text-center space-y-1">
-                                        <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-emerald-800">
-                                            <Lock size={14} className="text-emerald-600" />
-                                            <span>This issue has been resolved. Discussion is now closed.</span>
+                                {/* Discussion Footer (Input / Resolved Banner) */}
+                                <div className="pt-3 border-t border-gray-100 shrink-0">
+                                    {isResolved ? (
+                                        <div className="bg-emerald-50/60 border border-emerald-100 rounded-2xl p-3.5 text-center space-y-1">
+                                            <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-emerald-800">
+                                                <Lock size={14} className="text-emerald-600" />
+                                                <span>🔒 This issue has been resolved. Discussion is closed.</span>
+                                            </div>
+                                            <p className="text-[10px] text-gray-500">
+                                                Historical comments remain preserved as a public record.
+                                            </p>
                                         </div>
-                                        <p className="text-[11px] text-gray-500">
-                                            Existing comments and upvotes are preserved as a public community record.
-                                        </p>
-                                    </div>
-                                ) : user ? (
-                                    <div className="relative pt-2">
-                                        <textarea
-                                            rows="2"
-                                            placeholder="Add to the discussion..."
-                                            className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-4 pr-14 text-xs sm:text-sm font-medium text-gray-800 focus:ring-2 focus:ring-indigo-500 focus:bg-white focus:outline-none transition-all shadow-2xs resize-none"
-                                            value={newComment}
-                                            onChange={(e) => setNewComment(e.target.value)}
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter' && !e.shiftKey) {
-                                                    e.preventDefault();
-                                                    handleComment();
-                                                }
-                                            }}
-                                        />
-                                        <button
-                                            onClick={handleComment}
-                                            className="absolute right-3.5 bottom-3.5 bg-indigo-600 text-white p-2.5 rounded-xl hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100 active:scale-90 disabled:opacity-40 disabled:scale-100"
-                                            disabled={!newComment.trim()}
-                                            title="Post Comment"
-                                            aria-label="Post Comment"
-                                        >
-                                            <Send size={16} />
-                                        </button>
-                                    </div>
-                                ) : (
-                                    <div className="bg-gradient-to-r from-indigo-50 via-purple-50 to-indigo-50 p-5 rounded-2xl text-center border border-indigo-100 shadow-2xs">
-                                        <p className="text-indigo-900 font-bold text-xs mb-3">Want to join this civic conversation?</p>
-                                        <Link 
-                                            to="/login" 
-                                            className="inline-block px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-black text-xs tracking-wider uppercase hover:bg-indigo-700 transition shadow-sm shadow-indigo-200 active:scale-95"
-                                        >
-                                            Login to Comment
-                                        </Link>
-                                    </div>
-                                )}
+                                    ) : user ? (
+                                        <div className="relative">
+                                            <textarea
+                                                rows="2"
+                                                placeholder="Add to the discussion..."
+                                                className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3.5 pr-12 text-xs font-medium text-gray-800 focus:ring-2 focus:ring-indigo-500 focus:bg-white focus:outline-none transition-all shadow-2xs resize-none"
+                                                value={newComment}
+                                                onChange={(e) => setNewComment(e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                                        e.preventDefault();
+                                                        handleComment();
+                                                    }
+                                                }}
+                                            />
+                                            <button
+                                                onClick={handleComment}
+                                                className="absolute right-2.5 bottom-3 bg-indigo-600 text-white p-2 rounded-xl hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100 active:scale-90 disabled:opacity-40 disabled:scale-100"
+                                                disabled={!newComment.trim()}
+                                                title="Post Comment"
+                                                aria-label="Post Comment"
+                                            >
+                                                <Send size={15} />
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="bg-gradient-to-r from-indigo-50 via-purple-50 to-indigo-50 p-4 rounded-2xl text-center border border-indigo-100">
+                                            <p className="text-indigo-900 font-bold text-xs mb-2">Want to join this civic conversation?</p>
+                                            <Link 
+                                                to="/login" 
+                                                className="inline-block px-5 py-2 bg-indigo-600 text-white rounded-xl font-black text-[11px] tracking-wider uppercase hover:bg-indigo-700 transition shadow-sm shadow-indigo-200 active:scale-95"
+                                            >
+                                                Login to Comment
+                                            </Link>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>
