@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { 
     Users, UserCheck, FileText, Search, ArrowUpDown, ChevronLeft, 
     ChevronRight, Eye, Shield, Mail, Phone, Calendar, ArrowLeft,
-    RotateCcw, AlertCircle, Ban, CheckCircle, UserX, AlertTriangle
+    RotateCcw, AlertCircle, Ban, CheckCircle, UserX, AlertTriangle, Flag
 } from 'lucide-react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import Navbar from '../components/Navbar';
