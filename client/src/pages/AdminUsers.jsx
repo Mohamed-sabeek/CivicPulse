@@ -109,10 +109,10 @@ const AdminUsers = () => {
                                 <ArrowLeft size={14} /> Admin Dashboard
                             </Link>
                             <span>/</span>
-                            <span className="text-indigo-600">User Management</span>
+                            <span className="text-indigo-600">Citizen Management</span>
                         </div>
                         <h1 className="text-3xl sm:text-4xl font-black text-gray-900 tracking-tight">
-                            User Management
+                            Citizen Management
                         </h1>
                         <p className="text-gray-500 text-sm mt-1">
                             View and manage registered CivicPulse citizens and their civic activity.
@@ -142,8 +142,8 @@ const AdminUsers = () => {
                             </div>
                             <span className="text-[10px] font-black text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md">Total</span>
                         </div>
-                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Total Users</p>
-                        <h3 className="text-3xl font-black text-gray-900 mt-1">{stats.totalUsers}</h3>
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Total Citizens</p>
+                        <h3 className="text-3xl font-black text-gray-900 mt-1">{stats.totalCitizens !== undefined ? stats.totalCitizens : stats.totalUsers}</h3>
                         <p className="text-[11px] text-gray-400 mt-1">Registered citizen accounts</p>
                     </div>
 
@@ -154,8 +154,8 @@ const AdminUsers = () => {
                             </div>
                             <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">Active</span>
                         </div>
-                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Active Users</p>
-                        <h3 className="text-3xl font-black text-gray-900 mt-1">{stats.activeUsers}</h3>
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Active Citizens</p>
+                        <h3 className="text-3xl font-black text-gray-900 mt-1">{stats.activeCitizens !== undefined ? stats.activeCitizens : stats.activeUsers}</h3>
                         <p className="text-[11px] text-gray-400 mt-1">Currently active accounts</p>
                     </div>
 
@@ -168,7 +168,7 @@ const AdminUsers = () => {
                         </div>
                         <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Reported Issues</p>
                         <h3 className="text-3xl font-black text-gray-900 mt-1">{stats.usersWithReports}</h3>
-                        <p className="text-[11px] text-gray-400 mt-1">Users submitted ≥1 issue</p>
+                        <p className="text-[11px] text-gray-400 mt-1">Citizens submitted ≥1 issue</p>
                     </div>
 
                     <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
@@ -192,7 +192,7 @@ const AdminUsers = () => {
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                             <input
                                 type="text"
-                                placeholder="Search users by name, email, or phone..."
+                                placeholder="Search citizens by name, email, or phone..."
                                 value={search}
                                 onChange={handleSearchChange}
                                 className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-xs font-bold text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition"
@@ -212,7 +212,7 @@ const AdminUsers = () => {
                                                 : 'text-gray-600 hover:text-gray-900'
                                         }`}
                                     >
-                                        {st === 'All' ? 'All Users' : st}
+                                        {st === 'All' ? 'All Citizens' : st}
                                     </button>
                                 ))}
                             </div>
@@ -235,7 +235,7 @@ const AdminUsers = () => {
                     </div>
                 </div>
 
-                {/* Users Table / List */}
+                {/* Citizens Table / List */}
                 <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
                     {loading ? (
                         <div className="py-20 flex flex-col items-center justify-center space-y-4">
@@ -260,7 +260,7 @@ const AdminUsers = () => {
                             <div className="w-16 h-16 rounded-3xl bg-indigo-50 text-indigo-600 mx-auto flex items-center justify-center">
                                 <Users size={28} />
                             </div>
-                            <h4 className="text-lg font-black text-gray-900">No Users Found</h4>
+                            <h4 className="text-lg font-black text-gray-900">No Citizens Found</h4>
                             <p className="text-xs text-gray-500 max-w-sm mx-auto">
                                 No registered citizens match your current search or filter criteria.
                             </p>
@@ -379,7 +379,7 @@ const AdminUsers = () => {
                             {/* Pagination Controls */}
                             <div className="p-4 sm:p-6 border-t border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row items-center justify-between gap-4">
                                 <span className="text-xs font-bold text-gray-500">
-                                    Showing {((pagination.page - 1) * pagination.limit) + 1}–{Math.min(pagination.page * pagination.limit, pagination.totalUsers)} of {pagination.totalUsers} registered users
+                                    Showing {((pagination.page - 1) * pagination.limit) + 1}–{Math.min(pagination.page * pagination.limit, pagination.totalCitizens || pagination.totalUsers)} of {pagination.totalCitizens || pagination.totalUsers} registered citizens
                                 </span>
 
                                 <div className="flex items-center gap-2">

@@ -12,14 +12,15 @@ const Notification = require('../models/Notification');
 // @access  Private/Admin
 router.get('/stats', [auth, admin], async (req, res) => {
     try {
-        const totalUsers = await User.countDocuments();
+        const totalCitizens = await User.countDocuments({ role: { $ne: 'admin' } });
         const totalIssues = await Issue.countDocuments();
         const pendingIssues = await Issue.countDocuments({ status: { $in: ['Open', 'Pending'] } });
         const inProgressIssues = await Issue.countDocuments({ status: 'In Progress' });
         const resolvedIssues = await Issue.countDocuments({ status: 'Resolved' });
 
         res.json({
-            totalUsers,
+            totalUsers: totalCitizens,
+            totalCitizens,
             totalIssues,
             openIssues: pendingIssues,
             pendingIssues,
@@ -37,7 +38,7 @@ router.get('/stats', [auth, admin], async (req, res) => {
 // @access  Private/Admin
 router.get('/dashboard', [auth, admin], async (req, res) => {
     try {
-        const totalUsers = await User.countDocuments();
+        const totalCitizens = await User.countDocuments({ role: { $ne: 'admin' } });
         const totalIssues = await Issue.countDocuments();
         const pendingIssues = await Issue.countDocuments({ status: { $in: ['Open', 'Pending'] } });
         const inProgressIssues = await Issue.countDocuments({ status: 'In Progress' });
@@ -51,7 +52,8 @@ router.get('/dashboard', [auth, admin], async (req, res) => {
 
         res.json({
             stats: {
-                totalUsers,
+                totalUsers: totalCitizens,
+                totalCitizens,
                 totalIssues,
                 pendingIssues,
                 inProgressIssues,
@@ -267,29 +269,40 @@ router.get('/users', [auth, admin], async (req, res) => {
         const statusFilter = req.query.status || 'All';
         const sortOption = req.query.sort || 'recent';
 
-        // Base user filter
-        let userFilter = {};
+        // Base citizen filter: strictly exclude admin accounts
+        let citizenFilter = {
+            role: { $ne: 'admin' }
+        };
+
         if (search) {
-            userFilter.$or = [
-                { name: { $regex: search, $options: 'i' } },
-                { email: { $regex: search, $options: 'i' } },
-                { phone: { $regex: search, $options: 'i' } }
+            citizenFilter.$and = [
+                {
+                    $or: [
+                        { name: { $regex: search, $options: 'i' } },
+                        { email: { $regex: search, $options: 'i' } },
+                        { phone: { $regex: search, $options: 'i' } }
+                    ]
+                }
             ];
         }
 
         if (statusFilter && statusFilter !== 'All') {
-            userFilter.status = statusFilter;
+            citizenFilter.status = statusFilter;
         }
 
-        // Summary Stats (independent of pagination/search)
-        const totalUsers = await User.countDocuments();
-        const activeUsers = await User.countDocuments({ status: { $ne: 'Suspended' } });
-        const distinctReporters = await Issue.distinct('createdBy');
+        // Summary Stats (strictly citizens, excluding admins)
+        const totalCitizens = await User.countDocuments({ role: { $ne: 'admin' } });
+        const activeCitizens = await User.countDocuments({ role: { $ne: 'admin' }, status: { $ne: 'Suspended' } });
+        
+        // Count distinct citizen reporters
+        const citizenUsers = await User.find({ role: { $ne: 'admin' } }).select('_id').lean();
+        const citizenIds = citizenUsers.map(u => u._id);
+        const distinctReporters = await Issue.distinct('createdBy', { createdBy: { $in: citizenIds } });
         const usersWithReports = distinctReporters ? distinctReporters.length : 0;
         const totalIssuesReported = await Issue.countDocuments();
 
-        // Fetch users matching filter without passwords
-        let users = await User.find(userFilter)
+        // Fetch citizens matching filter without passwords
+        let users = await User.find(citizenFilter)
             .select('-password')
             .sort({ createdAt: -1 })
             .lean();
@@ -357,8 +370,10 @@ router.get('/users', [auth, admin], async (req, res) => {
         res.json({
             users: paginatedUsers,
             stats: {
-                totalUsers,
-                activeUsers,
+                totalUsers: totalCitizens,
+                totalCitizens,
+                activeUsers: activeCitizens,
+                activeCitizens,
                 usersWithReports,
                 totalIssuesReported
             },
@@ -366,6 +381,7 @@ router.get('/users', [auth, admin], async (req, res) => {
                 page,
                 limit,
                 totalUsers: totalFilteredUsers,
+                totalCitizens: totalFilteredUsers,
                 totalPages
             }
         });

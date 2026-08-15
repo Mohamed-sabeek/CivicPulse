@@ -88,8 +88,8 @@ const AdminDashboard = () => {
 
     const analytics = [
         { 
-            title: 'Total Users', 
-            value: stats.totalUsers, 
+            title: 'Total Citizens', 
+            value: stats.totalCitizens !== undefined ? stats.totalCitizens : (stats.totalUsers || 0), 
             icon: Users, 
             lightColor: 'bg-indigo-50', 
             textColor: 'text-indigo-600',
@@ -161,9 +161,9 @@ const AdminDashboard = () => {
                                 className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/50 text-gray-800 hover:text-indigo-600 rounded-2xl text-xs font-black uppercase tracking-wider shadow-sm transition-all active:scale-95"
                             >
                                 <Users size={16} className="text-indigo-600" />
-                                <span>Users</span>
+                                <span>Citizens</span>
                                 <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-full text-[10px]">
-                                    {stats.totalUsers}
+                                    {stats.totalCitizens !== undefined ? stats.totalCitizens : (stats.totalUsers || 0)}
                                 </span>
                             </Link>
                             <Link
