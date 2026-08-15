@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
     Search, Filter, Calendar, MapPin, User, ThumbsUp, CheckCircle, 
-    Clock, ArrowLeft, ArrowUpDown, Timer, Eye, AlertCircle, History, Sparkles, Flag, Users 
+    Clock, ArrowLeft, ArrowUpDown, Timer, Eye, AlertCircle, History, Sparkles, Flag, Users, Ban 
 } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
@@ -156,6 +156,13 @@ const AdminIssueHistory = () => {
                         </div>
 
                         <div className="flex items-center gap-2.5 flex-wrap">
+                            <Link
+                                to="/admin/appeals"
+                                className="inline-flex items-center gap-1.5 px-4 py-2 bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs font-bold rounded-xl transition border border-amber-100 shadow-xs"
+                            >
+                                <Ban size={14} className="text-amber-600" />
+                                <span>Appeals</span>
+                            </Link>
                             <Link
                                 to="/admin/reports"
                                 className="inline-flex items-center gap-1.5 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold rounded-xl transition border border-red-100 shadow-xs"

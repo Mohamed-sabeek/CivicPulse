@@ -187,6 +187,13 @@ const AdminReports = () => {
                                 <span>Dashboard</span>
                             </Link>
                             <Link
+                                to="/admin/appeals"
+                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 hover:border-amber-300 hover:bg-amber-50/50 text-gray-800 hover:text-amber-700 rounded-2xl text-xs font-black uppercase tracking-wider shadow-sm transition-all active:scale-95"
+                            >
+                                <Ban size={15} className="text-amber-600" />
+                                <span>Appeals</span>
+                            </Link>
+                            <Link
                                 to="/admin/users"
                                 className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/50 text-gray-800 hover:text-indigo-600 rounded-2xl text-xs font-black uppercase tracking-wider shadow-sm transition-all active:scale-95"
                             >

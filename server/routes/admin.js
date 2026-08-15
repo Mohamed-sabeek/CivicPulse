@@ -8,6 +8,7 @@ const IssueHistory = require('../models/IssueHistory');
 const Notification = require('../models/Notification');
 const UserModerationHistory = require('../models/UserModerationHistory');
 const CommentReport = require('../models/CommentReport');
+const SupportRequest = require('../models/SupportRequest');
 
 // @route   GET api/admin/stats
 // @desc    Get system statistics
@@ -22,6 +23,7 @@ router.get('/stats', [auth, admin], async (req, res) => {
         const inProgressIssues = await Issue.countDocuments({ status: 'In Progress' });
         const resolvedIssues = await Issue.countDocuments({ status: 'Resolved' });
         const pendingReports = await CommentReport.countDocuments({ status: 'pending' });
+        const pendingAppeals = await SupportRequest.countDocuments({ status: 'pending', type: 'ACCOUNT_BLOCK_APPEAL' });
 
         res.json({
             totalUsers: totalCitizens,
@@ -33,7 +35,8 @@ router.get('/stats', [auth, admin], async (req, res) => {
             pendingIssues,
             inProgressIssues,
             resolvedIssues,
-            pendingReports
+            pendingReports,
+            pendingAppeals
         });
     } catch (err) {
         console.error('Error fetching admin stats:', err.message);
@@ -54,6 +57,7 @@ router.get('/dashboard', [auth, admin], async (req, res) => {
         const inProgressIssues = await Issue.countDocuments({ status: 'In Progress' });
         const resolvedIssues = await Issue.countDocuments({ status: 'Resolved' });
         const pendingReports = await CommentReport.countDocuments({ status: 'pending' });
+        const pendingAppeals = await SupportRequest.countDocuments({ status: 'pending', type: 'ACCOUNT_BLOCK_APPEAL' });
 
         // Active issues: only non-resolved issues
         const activeIssues = await Issue.find({ status: { $ne: 'Resolved' } })
@@ -71,7 +75,8 @@ router.get('/dashboard', [auth, admin], async (req, res) => {
                 pendingIssues,
                 inProgressIssues,
                 resolvedIssues,
-                pendingReports
+                pendingReports,
+                pendingAppeals
             },
             activeIssues
         });
@@ -773,4 +778,241 @@ router.patch('/users/:userId/unblock', [auth, admin], async (req, res) => {
     }
 });
 
+// @route   GET api/admin/appeals
+// @desc    Get paginated, filtered account appeals
+// @access  Private/Admin
+router.get('/appeals', [auth, admin], async (req, res) => {
+    try {
+        const { status, search, sort, page = 1, limit = 10 } = req.query;
+
+        let filter = { type: 'ACCOUNT_BLOCK_APPEAL' };
+        if (status && status !== 'all') {
+            filter.status = status;
+        }
+
+        if (search && search.trim()) {
+            const searchRegex = new RegExp(search.trim(), 'i');
+            filter.$or = [
+                { referenceId: searchRegex },
+                { email: searchRegex },
+                { userName: searchRegex },
+                { subject: searchRegex },
+                { message: searchRegex }
+            ];
+        }
+
+        let sortOption = { createdAt: -1 };
+        if (sort === 'oldest') {
+            sortOption = { createdAt: 1 };
+        }
+
+        const pageNum = parseInt(page, 10) || 1;
+        const limitNum = parseInt(limit, 10) || 10;
+        const skip = (pageNum - 1) * limitNum;
+
+        const appeals = await SupportRequest.find(filter)
+            .populate('userId', 'name email status createdAt blockedReason')
+            .sort(sortOption)
+            .skip(skip)
+            .limit(limitNum)
+            .lean();
+
+        const totalFiltered = await SupportRequest.countDocuments(filter);
+        const totalAppeals = await SupportRequest.countDocuments({ type: 'ACCOUNT_BLOCK_APPEAL' });
+        const pendingCount = await SupportRequest.countDocuments({ type: 'ACCOUNT_BLOCK_APPEAL', status: 'pending' });
+        const reviewedCount = await SupportRequest.countDocuments({ type: 'ACCOUNT_BLOCK_APPEAL', status: 'reviewed' });
+        const resolvedCount = await SupportRequest.countDocuments({ type: 'ACCOUNT_BLOCK_APPEAL', status: 'resolved' });
+
+        res.json({
+            appeals,
+            stats: {
+                total: totalAppeals,
+                pending: pendingCount,
+                reviewed: reviewedCount,
+                resolved: resolvedCount
+            },
+            pagination: {
+                page: pageNum,
+                limit: limitNum,
+                totalPages: Math.ceil(totalFiltered / limitNum) || 1,
+                totalAppeals: totalFiltered
+            }
+        });
+    } catch (err) {
+        console.error('Error fetching admin appeals:', err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
+// @route   GET api/admin/appeals/:id
+// @desc    Get detailed appeal with citizen context
+// @access  Private/Admin
+router.get('/appeals/:id', [auth, admin], async (req, res) => {
+    try {
+        const appeal = await SupportRequest.findById(req.params.id)
+            .populate('userId', 'name email status createdAt blockedReason')
+            .lean();
+
+        if (!appeal) {
+            return res.status(404).json({ msg: 'Appeal request not found' });
+        }
+
+        // If a linked user exists, fetch extra civic metadata
+        let userContext = null;
+        if (appeal.userId?._id || appeal.email) {
+            const targetUserId = appeal.userId?._id;
+            const targetUser = targetUserId 
+                ? await User.findById(targetUserId).lean() 
+                : await User.findOne({ email: appeal.email.toLowerCase() }).lean();
+
+            if (targetUser) {
+                const totalIssues = await Issue.countDocuments({ createdBy: targetUser._id });
+                const moderationLogs = await UserModerationHistory.find({ userId: targetUser._id })
+                    .sort({ createdAt: -1 })
+                    .limit(5)
+                    .lean();
+
+                userContext = {
+                    _id: targetUser._id,
+                    name: targetUser.name,
+                    email: targetUser.email,
+                    status: targetUser.status,
+                    createdAt: targetUser.createdAt,
+                    blockedReason: targetUser.blockedReason || 'Violation of platform guidelines',
+                    totalIssues,
+                    moderationLogs
+                };
+            }
+        }
+
+        res.json({
+            appeal,
+            userContext
+        });
+    } catch (err) {
+        console.error('Error fetching appeal details:', err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
+// @route   POST api/admin/appeals/:id/decision
+// @desc    Handle admin decision on an account appeal (unblock / keep_blocked)
+// @access  Private/Admin
+router.post('/appeals/:id/decision', [auth, admin], async (req, res) => {
+    try {
+        const { decision, adminNotes } = req.body;
+
+        if (!['unblock', 'keep_blocked'].includes(decision)) {
+            return res.status(400).json({ msg: 'Invalid decision. Must be "unblock" or "keep_blocked".' });
+        }
+
+        const appeal = await SupportRequest.findById(req.params.id);
+        if (!appeal) {
+            return res.status(404).json({ msg: 'Appeal request not found' });
+        }
+
+        const adminUser = await User.findById(req.user.id).select('name');
+        const adminName = adminUser?.name || 'Administrator';
+
+        // Target user lookup
+        let targetUser = null;
+        if (appeal.userId) {
+            targetUser = await User.findById(appeal.userId);
+        } else if (appeal.email) {
+            targetUser = await User.findOne({ email: appeal.email.toLowerCase() });
+        }
+
+        if (decision === 'unblock') {
+            if (targetUser) {
+                targetUser.status = 'active';
+                targetUser.blockedReason = null;
+                targetUser.blockedAt = null;
+                targetUser.blockedBy = null;
+                await targetUser.save();
+
+                // Audit moderation history
+                await UserModerationHistory.create({
+                    userId: targetUser._id,
+                    action: 'unblocked',
+                    reason: `Appeal approved: ${adminNotes || 'Account restored after appeal review'}`,
+                    performedBy: req.user.id,
+                    performedByName: adminName
+                });
+
+                // Citizen notification
+                try {
+                    await Notification.create({
+                        type: 'APPEAL_RESOLVED',
+                        recipientRole: 'citizen',
+                        userId: targetUser._id,
+                        title: 'Account Restored',
+                        message: 'Your account appeal has been reviewed and your CivicPulse account has been restored. You can now log in again.',
+                        supportRequestId: appeal._id,
+                        referenceId: appeal.referenceId,
+                        isRead: false
+                    });
+                } catch (notifErr) {
+                    console.error('Failed to notify citizen of unblock:', notifErr.message);
+                }
+            }
+
+            appeal.status = 'resolved';
+            appeal.decision = 'unblocked';
+            appeal.adminNotes = adminNotes || 'Account restored upon appeal review';
+            appeal.reviewedBy = req.user.id;
+            appeal.reviewedByName = adminName;
+            appeal.reviewedAt = new Date();
+            await appeal.save();
+
+            return res.json({
+                msg: 'Account appeal approved and citizen account unblocked successfully.',
+                appeal
+            });
+        } else {
+            // keep_blocked
+            if (targetUser) {
+                await UserModerationHistory.create({
+                    userId: targetUser._id,
+                    action: 'blocked',
+                    reason: `Appeal reviewed and maintained: ${adminNotes || 'Violation confirmed'}`,
+                    performedBy: req.user.id,
+                    performedByName: adminName
+                });
+
+                try {
+                    await Notification.create({
+                        type: 'APPEAL_RESOLVED',
+                        recipientRole: 'citizen',
+                        userId: targetUser._id,
+                        title: 'Account Appeal Reviewed',
+                        message: 'Your account appeal has been reviewed. After review, your account will remain blocked because the platform guidelines violation was confirmed.',
+                        supportRequestId: appeal._id,
+                        referenceId: appeal.referenceId,
+                        isRead: false
+                    });
+                } catch (notifErr) {
+                    console.error('Failed to notify citizen of confirmed block:', notifErr.message);
+                }
+            }
+
+            appeal.status = 'resolved';
+            appeal.decision = 'kept_blocked';
+            appeal.adminNotes = adminNotes || 'Account block maintained upon review';
+            appeal.reviewedBy = req.user.id;
+            appeal.reviewedByName = adminName;
+            appeal.reviewedAt = new Date();
+            await appeal.save();
+
+            return res.json({
+                msg: 'Account appeal resolved. The account remains blocked as confirmed.',
+                appeal
+            });
+        }
+    } catch (err) {
+        console.error('Error processing appeal decision:', err);
+        res.status(500).send('Server Error');
+    }
+});
+
 module.exports = router;
+

@@ -121,10 +121,12 @@ const NotificationBell = () => {
 
         setIsOpen(false);
 
-        // Navigate to appropriate page (Admin gets admin reports or admin issue details, Citizen gets citizen details)
+        // Navigate to appropriate page (Admin gets admin reports or admin issue details or appeals, Citizen gets citizen details)
         const user = getUserFromToken();
         if (user?.role === 'admin') {
-            if (notif.type === 'NEW_COMMENT_REPORT' || notif.type === 'COMMENT_REPORT' || notif.type === 'comment_reported') {
+            if (notif.type === 'ACCOUNT_BLOCK_APPEAL') {
+                navigate(notif.supportRequestId ? `/admin/appeals?appealId=${notif.supportRequestId}` : '/admin/appeals');
+            } else if (notif.type === 'NEW_COMMENT_REPORT' || notif.type === 'COMMENT_REPORT' || notif.type === 'comment_reported') {
                 navigate(notif.reportId ? `/admin/reports?reportId=${notif.reportId}` : '/admin/reports');
             } else if (notif.issueId) {
                 navigate(`/admin/issues/${notif.issueId}`);
@@ -137,12 +139,20 @@ const NotificationBell = () => {
     };
 
     const getNotificationStyle = (notif) => {
-        if (notif.type === 'REPORT_RESOLVED' || notif.newStatus === 'Resolved' || notif.type === 'ISSUE_RESOLVED') {
+        if (notif.type === 'REPORT_RESOLVED' || notif.newStatus === 'Resolved' || notif.type === 'ISSUE_RESOLVED' || (notif.type === 'APPEAL_RESOLVED' && notif.title?.includes('Restored'))) {
             return {
                 icon: CheckCircle2,
                 iconBg: notif.isRead ? 'bg-emerald-100 text-emerald-600' : 'bg-emerald-600 text-white shadow-emerald-200',
                 border: notif.isRead ? 'border-transparent' : 'border-emerald-500 bg-emerald-50/40',
                 titleColor: 'text-emerald-700'
+            };
+        }
+        if (notif.type === 'ACCOUNT_BLOCK_APPEAL') {
+            return {
+                icon: Flag,
+                iconBg: notif.isRead ? 'bg-amber-100 text-amber-700' : 'bg-amber-600 text-white shadow-amber-200',
+                border: notif.isRead ? 'border-transparent' : 'border-amber-500 bg-amber-50/40',
+                titleColor: 'text-amber-800'
             };
         }
         if (notif.type === 'NEW_COMMENT_REPORT' || notif.type === 'COMMENT_REPORT' || notif.type === 'comment_reported') {

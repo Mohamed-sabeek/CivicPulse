@@ -9,6 +9,8 @@ const NotificationSchema = new mongoose.Schema({
             'ISSUE_RESOLVED', 
             'NEW_COMMENT_REPORT', 
             'REPORT_RESOLVED', 
+            'ACCOUNT_BLOCK_APPEAL',
+            'APPEAL_RESOLVED',
             'new_issue', 
             'ISSUE_STATUS_UPDATE', 
             'COMMENT_REPORT', 
@@ -41,6 +43,13 @@ const NotificationSchema = new mongoose.Schema({
     reportId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'CommentReport'
+    },
+    supportRequestId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'SupportRequest'
+    },
+    referenceId: {
+        type: String
     },
     userName: {
         type: String,

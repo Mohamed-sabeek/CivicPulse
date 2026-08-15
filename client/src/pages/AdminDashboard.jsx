@@ -22,7 +22,8 @@ const AdminDashboard = () => {
         pendingIssues: 0,
         inProgressIssues: 0,
         resolvedIssues: 0,
-        pendingReports: 0
+        pendingReports: 0,
+        pendingAppeals: 0
     });
     const [activeIssues, setActiveIssues] = useState([]);
     const [selectedTimelineIssueId, setSelectedTimelineIssueId] = useState(null);
@@ -40,7 +41,8 @@ const AdminDashboard = () => {
                 pendingIssues: 0,
                 inProgressIssues: 0,
                 resolvedIssues: 0,
-                pendingReports: 0
+                pendingReports: 0,
+                pendingAppeals: 0
             });
             setActiveIssues(res.data.activeIssues || []);
         } catch (err) {
@@ -103,6 +105,15 @@ const AdminDashboard = () => {
             textColor: 'text-indigo-600',
             desc: stats.blockedCitizens > 0 ? `${stats.activeCitizens || 0} active • ${stats.blockedCitizens} blocked` : 'Registered citizens',
             onClick: () => navigate('/admin/users')
+        },
+        { 
+            title: 'Pending Appeals', 
+            value: stats.pendingAppeals || 0, 
+            icon: UserX, 
+            lightColor: 'bg-amber-50', 
+            textColor: 'text-amber-700',
+            desc: stats.pendingAppeals > 0 ? 'Blocked account reviews' : 'No pending appeals',
+            onClick: () => navigate('/admin/appeals?status=pending')
         },
         { 
             title: 'Pending Reports', 
@@ -182,6 +193,22 @@ const AdminDashboard = () => {
 
                         {/* Navigation actions */}
                         <div className="flex items-center gap-3 flex-wrap">
+                            <Link
+                                to="/admin/appeals"
+                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 hover:border-amber-300 hover:bg-amber-50/50 text-gray-800 hover:text-amber-700 rounded-2xl text-xs font-black uppercase tracking-wider shadow-sm transition-all active:scale-95"
+                            >
+                                <UserX size={16} className="text-amber-600" />
+                                <span>Appeals</span>
+                                {stats.pendingAppeals > 0 ? (
+                                    <span className="px-2 py-0.5 bg-amber-500 text-white font-black rounded-full text-[10px] animate-pulse">
+                                        {stats.pendingAppeals}
+                                    </span>
+                                ) : (
+                                    <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full text-[10px]">
+                                        0
+                                    </span>
+                                )}
+                            </Link>
                             <Link
                                 to="/admin/reports"
                                 className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 hover:border-red-300 hover:bg-red-50/50 text-gray-800 hover:text-red-600 rounded-2xl text-xs font-black uppercase tracking-wider shadow-sm transition-all active:scale-95"
