@@ -142,6 +142,60 @@ router.get('/issues/:id/timeline', [auth, admin], async (req, res) => {
     }
 });
 
+// @route   GET api/admin/issues/:id
+// @desc    Get comprehensive issue details for Admin Issue Details page
+// @access  Private/Admin
+router.get('/issues/:id', [auth, admin], async (req, res) => {
+    try {
+        const issue = await Issue.findById(req.params.id)
+            .populate('createdBy', 'name email phone status')
+            .populate('comments.user', 'name email role status')
+            .lean();
+
+        if (!issue) {
+            return res.status(404).json({ msg: 'Issue not found' });
+        }
+
+        const historyLogs = await IssueHistory.find({ issueId: req.params.id })
+            .sort({ changedAt: -1 })
+            .lean();
+
+        const commentReports = await CommentReport.find({ issueId: req.params.id })
+            .sort({ createdAt: -1 })
+            .lean();
+
+        // Calculate resolution time if resolved
+        let resolutionTimeFormatted = null;
+        if (issue.status === 'Resolved' && (issue.resolvedAt || issue.updatedAt)) {
+            const start = new Date(issue.createdAt);
+            const end = new Date(issue.resolvedAt || issue.updatedAt);
+            const diffMs = Math.max(0, end - start);
+            const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
+            const days = Math.floor(diffHrs / 24);
+            const remainingHrs = diffHrs % 24;
+
+            if (days > 0) {
+                resolutionTimeFormatted = `${days} day${days > 1 ? 's' : ''} ${remainingHrs} hr${remainingHrs !== 1 ? 's' : ''}`;
+            } else if (diffHrs > 0) {
+                resolutionTimeFormatted = `${diffHrs} hour${diffHrs > 1 ? 's' : ''}`;
+            } else {
+                const mins = Math.max(1, Math.floor(diffMs / (1000 * 60)));
+                resolutionTimeFormatted = `${mins} minute${mins > 1 ? 's' : ''}`;
+            }
+        }
+
+        res.json({
+            issue,
+            historyLogs,
+            commentReports,
+            resolutionTime: resolutionTimeFormatted
+        });
+    } catch (err) {
+        console.error('Error fetching admin issue details:', err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
 // @route   PUT api/admin/issues/:id/status
 // @desc    Update issue status, record in IssueHistory, and notify reporter
 // @access  Private/Admin

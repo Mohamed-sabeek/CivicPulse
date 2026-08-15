@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
     X, User, Mail, Phone, Calendar, Shield, AlertCircle, 
-    CheckCircle2, Clock, ThumbsUp, MapPin, ExternalLink,
+    CheckCircle2, Clock, ThumbsUp, MapPin, 
     Activity, Ban, CheckCircle, AlertTriangle, History, Flag, 
-    MessageSquare, ShieldAlert, Check
+    MessageSquare, ShieldAlert, Check, ArrowRight
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import api from '../utils/api';
 
 const UserDetailsModal = ({ userId, isOpen, onClose, onUserStatusUpdated }) => {
+    const navigate = useNavigate();
     const [userData, setUserData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -79,6 +80,12 @@ const UserDetailsModal = ({ userId, isOpen, onClose, onUserStatusUpdated }) => {
         } finally {
             setReportUpdatingId(null);
         }
+    };
+
+    const handleNavigateToIssue = (issueId) => {
+        if (!issueId) return;
+        onClose();
+        navigate(`/admin/issues/${issueId}`);
     };
 
     if (!isOpen) return null;
@@ -330,7 +337,7 @@ const UserDetailsModal = ({ userId, isOpen, onClose, onUserStatusUpdated }) => {
                                 </div>
                             </div>
 
-                            {/* Reported Issues Feed */}
+                            {/* Preserved Reported Issues Feed */}
                             <div>
                                 <div className="flex items-center justify-between mb-4">
                                     <div className="flex items-center gap-2">
@@ -394,15 +401,13 @@ const UserDetailsModal = ({ userId, isOpen, onClose, onUserStatusUpdated }) => {
                                                     </div>
                                                 </div>
 
-                                                <Link 
-                                                    to={`/issues/${iss._id}`}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
+                                                <button 
+                                                    onClick={() => handleNavigateToIssue(iss._id)}
                                                     className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-gray-50 group-hover:bg-indigo-50 text-gray-600 group-hover:text-indigo-600 rounded-xl text-xs font-bold transition whitespace-nowrap"
                                                 >
                                                     <span>View Issue</span>
-                                                    <ExternalLink size={12} />
-                                                </Link>
+                                                    <ArrowRight size={13} />
+                                                </button>
                                             </div>
                                         ))}
                                     </div>
@@ -464,15 +469,13 @@ const UserDetailsModal = ({ userId, isOpen, onClose, onUserStatusUpdated }) => {
                                                         )}
                                                     </div>
 
-                                                    <Link
-                                                        to={`/issues/${rep.issueId}`}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
+                                                    <button
+                                                        onClick={() => handleNavigateToIssue(rep.issueId)}
                                                         className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-gray-50 hover:bg-indigo-50 text-gray-700 hover:text-indigo-600 text-xs font-bold rounded-xl transition border border-gray-200 shadow-2xs"
                                                     >
-                                                        <span>View Discussion</span>
-                                                        <ExternalLink size={12} />
-                                                    </Link>
+                                                        <span>View Issue</span>
+                                                        <ArrowRight size={13} />
+                                                    </button>
                                                 </div>
                                             </div>
                                         ))}
@@ -544,15 +547,13 @@ const UserDetailsModal = ({ userId, isOpen, onClose, onUserStatusUpdated }) => {
                                                     </div>
 
                                                     <div className="flex items-center gap-2 pt-2 sm:pt-0">
-                                                        <Link
-                                                            to={`/issues/${rep.issueId}`}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
+                                                        <button
+                                                            onClick={() => handleNavigateToIssue(rep.issueId)}
                                                             className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 hover:bg-indigo-50 text-gray-700 hover:text-indigo-600 text-xs font-bold rounded-xl transition border border-gray-200 shadow-2xs"
                                                         >
                                                             <span>View Issue</span>
-                                                            <ExternalLink size={12} />
-                                                        </Link>
+                                                            <ArrowRight size={13} />
+                                                        </button>
 
                                                         {rep.status !== 'dismissed' && (
                                                             <button
