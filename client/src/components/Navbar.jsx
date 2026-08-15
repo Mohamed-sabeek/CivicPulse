@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Menu, X, Home, Info, AlertCircle, CheckCircle, LayoutDashboard, Settings, LogOut } from 'lucide-react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import NotificationBell from './NotificationBell';
+import civicPulseLogo from '../assets/civicpulse-logo.png';
 
 const getUserFromToken = () => {
     const token = localStorage.getItem('token');
@@ -110,19 +111,23 @@ const Navbar = () => {
                     {/* Logo */}
                     <div className="flex items-center">
                         {token ? (
-                            <div className="flex items-center gap-2 select-none cursor-default">
-                                <div className="p-2 bg-indigo-600 rounded-xl shadow-indigo-200 shadow-lg">
-                                    <AlertCircle className="text-white" size={24} />
-                                </div>
+                            <div className="flex items-center gap-2.5 select-none cursor-default">
+                                <img 
+                                    src={civicPulseLogo} 
+                                    alt="CivicPulse Logo" 
+                                    className="h-10 w-10 object-contain rounded-xl shadow-sm"
+                                />
                                 <span className="text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-blue-500 tracking-tight">
                                     CivicPulse
                                 </span>
                             </div>
                         ) : (
-                            <Link to="/" onClick={handleScrollToHome} className="group flex items-center gap-2 transition-transform duration-300 ease-out active:scale-95">
-                                <div className="p-2 bg-indigo-600 rounded-xl group-hover:rotate-12 transition-transform duration-300 shadow-indigo-200 shadow-lg">
-                                    <AlertCircle className="text-white" size={24} />
-                                </div>
+                            <Link to="/" onClick={handleScrollToHome} className="group flex items-center gap-2.5 transition-transform duration-300 ease-out active:scale-95">
+                                <img 
+                                    src={civicPulseLogo} 
+                                    alt="CivicPulse Logo" 
+                                    className="h-10 w-10 object-contain rounded-xl shadow-sm group-hover:scale-105 transition-transform duration-300"
+                                />
                                 <span className="text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-blue-500 tracking-tight">
                                     CivicPulse
                                 </span>
