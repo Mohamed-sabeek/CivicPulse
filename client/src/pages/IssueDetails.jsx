@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { MapPin, ArrowUp, MessageSquare, Calendar, ChevronLeft, CheckCircle, Clock, Send, ThumbsUp, Share2, Lock } from 'lucide-react';
+import { MapPin, ArrowUp, MessageSquare, Calendar, ChevronLeft, CheckCircle, Clock, Send, ThumbsUp, Share2, Lock, Check } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import DetailSkeleton from '../components/DetailSkeleton';
@@ -13,6 +13,7 @@ const IssueDetails = () => {
     const [error, setError] = useState(null);
     const [user, setUser] = useState(null);
     const [newComment, setNewComment] = useState('');
+    const [copiedToast, setCopiedToast] = useState(false);
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -68,6 +69,52 @@ const IssueDetails = () => {
             setIssue(prev => ({ ...prev, upvotes: res.data }));
         } catch (err) {
             console.error(err);
+        }
+    };
+
+    const copyToClipboard = async (text) => {
+        try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(text);
+            } else {
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                textArea.style.position = 'fixed';
+                textArea.style.opacity = '0';
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+            }
+            setCopiedToast(true);
+            setTimeout(() => {
+                setCopiedToast(false);
+            }, 3000);
+        } catch (err) {
+            console.error('Failed to copy issue link:', err);
+        }
+    };
+
+    const handleShare = async () => {
+        if (!issue) return;
+        const currentUrl = window.location.href;
+        const shareData = {
+            title: `CivicPulse – ${issue.title}`,
+            text: issue.description ? `${issue.description.slice(0, 120)}...` : 'A civic issue reported through CivicPulse.',
+            url: currentUrl
+        };
+
+        if (navigator.share) {
+            try {
+                await navigator.share(shareData);
+            } catch (err) {
+                // If user aborts/cancels native dialog, do not show error or copy
+                if (err.name !== 'AbortError') {
+                    copyToClipboard(currentUrl);
+                }
+            }
+        } else {
+            copyToClipboard(currentUrl);
         }
     };
 
@@ -219,9 +266,24 @@ const IssueDetails = () => {
                                         </div>
                                     </div>
                                 </div>
-                                <button className="p-4 bg-gray-50 text-gray-400 rounded-2xl hover:bg-indigo-50 hover:text-indigo-600 transition-all active:scale-90">
-                                    <Share2 size={24} />
-                                </button>
+                                <div className="relative">
+                                    <button 
+                                        onClick={handleShare}
+                                        className="p-4 bg-gray-50 text-gray-400 rounded-2xl hover:bg-indigo-50 hover:text-indigo-600 transition-all active:scale-90 relative"
+                                        title="Share this issue"
+                                        aria-label="Share this issue"
+                                    >
+                                        <Share2 size={24} />
+                                    </button>
+
+                                    {/* Issue Link Copied Toast */}
+                                    {copiedToast && (
+                                        <div className="absolute right-0 -top-12 z-30 px-3.5 py-1.5 bg-gray-900 text-white text-xs font-bold rounded-xl shadow-xl flex items-center gap-1.5 whitespace-nowrap animate-in fade-in zoom-in-95 duration-200">
+                                            <Check size={14} className="text-emerald-400" />
+                                            <span>Issue link copied!</span>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </article>
