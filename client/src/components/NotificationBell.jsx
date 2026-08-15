@@ -3,6 +3,21 @@ import { useNavigate } from 'react-router-dom';
 import { Bell, CheckCheck, MapPin, Tag, Clock, AlertCircle, Sparkles, Inbox, Activity, CheckCircle2 } from 'lucide-react';
 import api from '../utils/api';
 
+const getUserFromToken = () => {
+    const token = localStorage.getItem('token');
+    if (!token) return null;
+    try {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function (c) {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        return JSON.parse(jsonPayload).user;
+    } catch {
+        return null;
+    }
+};
+
 const timeAgo = (date) => {
     if (!date) return '';
     const now = new Date();
@@ -103,14 +118,19 @@ const NotificationBell = () => {
 
         setIsOpen(false);
 
-        // Navigate to the issue details page
+        // Navigate to appropriate issue page (Admin gets admin view, Citizen gets citizen details)
         if (notif.issueId) {
-            navigate(`/issues/${notif.issueId}`);
+            const user = getUserFromToken();
+            if (user?.role === 'admin') {
+                navigate(`/admin/issues/${notif.issueId}`);
+            } else {
+                navigate(`/issues/${notif.issueId}`);
+            }
         }
     };
 
     const getNotificationStyle = (notif) => {
-        if (notif.newStatus === 'Resolved') {
+        if (notif.newStatus === 'Resolved' || notif.type === 'ISSUE_RESOLVED') {
             return {
                 icon: CheckCircle2,
                 iconBg: notif.isRead ? 'bg-emerald-100 text-emerald-600' : 'bg-emerald-600 text-white shadow-emerald-200',
@@ -118,7 +138,7 @@ const NotificationBell = () => {
                 titleColor: 'text-emerald-700'
             };
         }
-        if (notif.newStatus === 'In Progress') {
+        if (notif.newStatus === 'In Progress' || notif.type === 'ISSUE_IN_PROGRESS') {
             return {
                 icon: Activity,
                 iconBg: notif.isRead ? 'bg-blue-100 text-blue-600' : 'bg-blue-600 text-white shadow-blue-200',
@@ -128,7 +148,7 @@ const NotificationBell = () => {
         }
         return {
             icon: AlertCircle,
-            iconBg: notif.isRead ? 'bg-gray-100 text-gray-500' : 'bg-indigo-600 text-white shadow-indigo-200',
+            iconBg: notif.isRead ? 'bg-indigo-100 text-indigo-600' : 'bg-indigo-600 text-white shadow-indigo-200',
             border: notif.isRead ? 'border-transparent' : 'border-indigo-600 bg-indigo-50/50',
             titleColor: 'text-indigo-600'
         };

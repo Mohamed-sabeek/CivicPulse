@@ -113,17 +113,19 @@ router.post('/', auth, async (req, res) => {
         try {
             const reportingUser = await User.findById(req.user.id).select('name');
             const userName = reportingUser?.name || 'Citizen';
+            const issueLocation = location || 'Coimbatore';
 
             await Notification.create({
-                type: 'new_issue',
+                type: 'NEW_ISSUE',
+                recipientRole: 'admin',
                 title: 'New Issue Reported',
-                message: `${userName} reported "${title}"`,
+                message: `${userName} reported "${title}" in ${issueLocation}.`,
                 issueId: issue._id,
                 userId: req.user.id,
                 userName: userName,
                 issueTitle: title,
                 category: category || 'General',
-                location: location || 'Not specified',
+                location: issueLocation,
                 isRead: false
             });
         } catch (notifErr) {

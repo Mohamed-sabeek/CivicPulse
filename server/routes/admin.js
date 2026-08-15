@@ -254,17 +254,20 @@ router.put('/issues/:id/status', [auth, admin], async (req, res) => {
             console.error('Failed to create IssueHistory log:', historyErr);
         }
 
-        // 2. Create targeted in-app notification for the citizen reporter
+        // 2. Create targeted in-app notification ONLY for the original citizen reporter
         try {
+            let notifType = 'ISSUE_STATUS_UPDATE';
             let notifTitle = '';
             let notifMessage = '';
 
             if ((oldStatus === 'Pending' || oldStatus === 'Open') && targetStatusDisplay === 'In Progress') {
-                notifTitle = 'Issue In Progress 🛠️';
-                notifMessage = `Your reported issue "${issue.title}" is now being worked on. Our team has started addressing this issue. Thank you for bringing it to our attention.`;
+                notifType = 'ISSUE_IN_PROGRESS';
+                notifTitle = 'Issue In Progress';
+                notifMessage = `Your reported issue "${issue.title}" is now being worked on.`;
             } else if (targetStatusDisplay === 'Resolved') {
-                notifTitle = 'Issue Resolved 🎉';
-                notifMessage = `Your reported issue "${issue.title}" has been resolved. Thank you for bringing this concern to our attention. Your report helped us identify and address the problem. We appreciate your contribution toward improving the community, and we will continue working to prevent similar issues from happening again.`;
+                notifType = 'ISSUE_RESOLVED';
+                notifTitle = 'Issue Resolved';
+                notifMessage = `Your reported issue "${issue.title}" has been resolved. Thank you for bringing this concern to CivicPulse. Your report helped us identify the problem, and we appreciate your contribution to improving the community. We will continue working to prevent similar issues from happening again.`;
             } else {
                 notifTitle = 'Issue Status Updated';
                 notifMessage = `Your reported issue "${issue.title}" is now marked as "${targetStatusDisplay}".`;
@@ -272,7 +275,7 @@ router.put('/issues/:id/status', [auth, admin], async (req, res) => {
 
             if (issue.createdBy) {
                 await Notification.create({
-                    type: 'ISSUE_STATUS_UPDATE',
+                    type: notifType,
                     recipientRole: 'citizen',
                     userId: issue.createdBy,
                     title: notifTitle,
@@ -287,7 +290,7 @@ router.put('/issues/:id/status', [auth, admin], async (req, res) => {
                 });
             }
         } catch (notifErr) {
-            console.error('Failed to create customer status notification:', notifErr);
+            console.error('Failed to create citizen status notification:', notifErr);
         }
 
         res.json(issue);

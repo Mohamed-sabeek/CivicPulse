@@ -3,8 +3,8 @@ const mongoose = require('mongoose');
 const NotificationSchema = new mongoose.Schema({
     type: {
         type: String,
-        enum: ['new_issue', 'ISSUE_STATUS_UPDATE'],
-        default: 'new_issue',
+        enum: ['NEW_ISSUE', 'ISSUE_IN_PROGRESS', 'ISSUE_RESOLVED', 'new_issue', 'ISSUE_STATUS_UPDATE', 'COMMENT_REPORT'],
+        default: 'NEW_ISSUE',
     },
     recipientRole: {
         type: String,

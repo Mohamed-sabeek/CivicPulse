@@ -4,22 +4,22 @@ const auth = require('../middleware/auth');
 const Notification = require('../models/Notification');
 
 // @route   GET api/notifications
-// @desc    Get notifications for logged in user (Admin sees admin notifications; Customer sees own status updates)
+// @desc    Get notifications for logged in user (Admin sees admin notifications; Citizen sees own status updates)
 // @access  Private
 router.get('/', auth, async (req, res) => {
     try {
         let query;
 
         if (req.user.role === 'admin') {
-            // Admin sees all new issue reports and admin alerts
+            // Admin sees all new issue reports, comment reports, and admin notifications
             query = {
                 $or: [
                     { recipientRole: 'admin' },
-                    { type: 'new_issue' }
+                    { type: { $in: ['NEW_ISSUE', 'new_issue', 'COMMENT_REPORT'] } }
                 ]
             };
         } else {
-            // Customer sees only notifications sent specifically to them
+            // Citizen sees only notifications specifically sent to them
             query = {
                 userId: req.user.id,
                 recipientRole: 'citizen'
@@ -54,7 +54,7 @@ router.put('/:id/read', auth, async (req, res) => {
             return res.status(404).json({ msg: 'Notification not found' });
         }
 
-        // Authorization check: Admin can mark admin notifications; Customer can only mark their own
+        // Authorization check: Admin can mark admin notifications; Citizen can only mark their own
         if (req.user.role !== 'admin' && notification.userId?.toString() !== req.user.id) {
             return res.status(403).json({ msg: 'Not authorized' });
         }
@@ -64,7 +64,13 @@ router.put('/:id/read', auth, async (req, res) => {
 
         let query;
         if (req.user.role === 'admin') {
-            query = { $or: [{ recipientRole: 'admin' }, { type: 'new_issue' }], isRead: false };
+            query = {
+                $or: [
+                    { recipientRole: 'admin' },
+                    { type: { $in: ['NEW_ISSUE', 'new_issue', 'COMMENT_REPORT'] } }
+                ],
+                isRead: false
+            };
         } else {
             query = { userId: req.user.id, recipientRole: 'citizen', isRead: false };
         }
@@ -88,7 +94,13 @@ router.put('/mark-all-read', auth, async (req, res) => {
     try {
         let query;
         if (req.user.role === 'admin') {
-            query = { $or: [{ recipientRole: 'admin' }, { type: 'new_issue' }], isRead: false };
+            query = {
+                $or: [
+                    { recipientRole: 'admin' },
+                    { type: { $in: ['NEW_ISSUE', 'new_issue', 'COMMENT_REPORT'] } }
+                ],
+                isRead: false
+            };
         } else {
             query = { userId: req.user.id, recipientRole: 'citizen', isRead: false };
         }
