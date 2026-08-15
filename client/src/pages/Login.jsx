@@ -259,30 +259,23 @@ const Login = () => {
                     >
                         {supportSuccessData ? (
                             /* Submission Success View */
-                            <div className="text-center py-4 space-y-4">
+                            <div className="text-center py-4 space-y-5">
                                 <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-3xl mx-auto flex items-center justify-center shadow-inner">
                                     <CheckCircle2 size={36} />
                                 </div>
-                                <div>
+                                <div className="space-y-1.5">
                                     <h3 className="text-xl font-black text-gray-900">Request Submitted Successfully</h3>
-                                    <p className="text-xs text-gray-500 mt-1 max-w-sm mx-auto">
-                                        Your appeal has been securely forwarded to our administration team for review.
-                                    </p>
-                                </div>
-
-                                <div className="p-4 bg-gray-50 rounded-2xl border border-gray-200/80 inline-block text-left w-full">
-                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider block">Appeal Reference ID</span>
-                                    <p className="text-lg font-black text-indigo-600 font-mono tracking-wider mt-0.5">
-                                        {supportSuccessData.referenceId}
-                                    </p>
-                                    <p className="text-[11px] text-gray-500 mt-1">
-                                        Please save this reference number for future communication regarding your account.
+                                    <p className="text-xs sm:text-sm text-gray-600 max-w-sm mx-auto font-medium leading-relaxed">
+                                        Your appeal request has been submitted successfully. Our team will review it.
                                     </p>
                                 </div>
 
                                 <button
-                                    onClick={() => setSupportModalOpen(false)}
-                                    className="w-full py-3 bg-gray-900 hover:bg-gray-800 text-white rounded-xl text-xs font-black uppercase tracking-wider transition shadow-md"
+                                    onClick={() => {
+                                        setSupportModalOpen(false);
+                                        setSupportSuccessData(null);
+                                    }}
+                                    className="w-full py-3 bg-gray-900 hover:bg-gray-800 text-white rounded-xl text-xs font-black uppercase tracking-wider transition shadow-md active:scale-95"
                                 >
                                     Done
                                 </button>
