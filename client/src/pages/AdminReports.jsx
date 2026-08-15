@@ -4,7 +4,7 @@ import {
     Flag, ShieldAlert, Check, X, Search, ChevronLeft, 
     Calendar, MapPin, User, MessageSquare, AlertCircle, 
     CheckCircle2, ArrowRight, Sparkles, Filter, ChevronRight,
-    Users, History, LayoutDashboard, Shield
+    Users, History, LayoutDashboard, Shield, Ban
 } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
