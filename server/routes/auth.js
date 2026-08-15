@@ -70,6 +70,14 @@ router.post('/login', async (req, res) => {
             return res.status(400).json({ msg: 'Invalid Credentials' });
         }
 
+        // Check if account is blocked
+        if (user.status === 'blocked' || user.status === 'Suspended') {
+            return res.status(403).json({
+                msg: 'Your CivicPulse account has been blocked due to a violation of platform guidelines. Please contact the administrator if you believe this was a mistake.',
+                isBlocked: true
+            });
+        }
+
         const payload = {
             user: {
                 id: user.id,

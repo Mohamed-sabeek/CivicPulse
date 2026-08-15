@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { Mail, Lock, ArrowRight, Loader, ShieldCheck } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
+import { Mail, Lock, ArrowRight, Loader, ShieldCheck, Ban } from 'lucide-react';
 import api from '../utils/api';
 import Navbar from '../components/Navbar';
 
@@ -12,6 +12,14 @@ const Login = () => {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
+    const location = useLocation();
+
+    useEffect(() => {
+        const queryParams = new URLSearchParams(location.search);
+        if (queryParams.get('blocked') === 'true') {
+            setError('Your CivicPulse account has been blocked due to a violation of platform guidelines. Please contact the administrator.');
+        }
+    }, [location]);
 
     const { email, password } = formData;
 

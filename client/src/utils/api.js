@@ -31,4 +31,17 @@ api.interceptors.request.use(
     }
 );
 
+api.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.response?.status === 403 && error.response?.data?.isBlocked) {
+            localStorage.removeItem('token');
+            if (window.location.pathname !== '/login') {
+                window.location.href = '/login?blocked=true';
+            }
+        }
+        return Promise.reject(error);
+    }
+);
+
 export default api;

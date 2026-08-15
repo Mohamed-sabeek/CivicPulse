@@ -6,6 +6,7 @@ const User = require('../models/User');
 const Issue = require('../models/Issue');
 const IssueHistory = require('../models/IssueHistory');
 const Notification = require('../models/Notification');
+const UserModerationHistory = require('../models/UserModerationHistory');
 
 // @route   GET api/admin/stats
 // @desc    Get system statistics
@@ -13,6 +14,8 @@ const Notification = require('../models/Notification');
 router.get('/stats', [auth, admin], async (req, res) => {
     try {
         const totalCitizens = await User.countDocuments({ role: { $ne: 'admin' } });
+        const activeCitizens = await User.countDocuments({ role: { $ne: 'admin' }, status: { $nin: ['blocked', 'Suspended'] } });
+        const blockedCitizens = await User.countDocuments({ role: { $ne: 'admin' }, status: { $in: ['blocked', 'Suspended'] } });
         const totalIssues = await Issue.countDocuments();
         const pendingIssues = await Issue.countDocuments({ status: { $in: ['Open', 'Pending'] } });
         const inProgressIssues = await Issue.countDocuments({ status: 'In Progress' });
@@ -21,6 +24,8 @@ router.get('/stats', [auth, admin], async (req, res) => {
         res.json({
             totalUsers: totalCitizens,
             totalCitizens,
+            activeCitizens,
+            blockedCitizens,
             totalIssues,
             openIssues: pendingIssues,
             pendingIssues,
@@ -39,6 +44,8 @@ router.get('/stats', [auth, admin], async (req, res) => {
 router.get('/dashboard', [auth, admin], async (req, res) => {
     try {
         const totalCitizens = await User.countDocuments({ role: { $ne: 'admin' } });
+        const activeCitizens = await User.countDocuments({ role: { $ne: 'admin' }, status: { $nin: ['blocked', 'Suspended'] } });
+        const blockedCitizens = await User.countDocuments({ role: { $ne: 'admin' }, status: { $in: ['blocked', 'Suspended'] } });
         const totalIssues = await Issue.countDocuments();
         const pendingIssues = await Issue.countDocuments({ status: { $in: ['Open', 'Pending'] } });
         const inProgressIssues = await Issue.countDocuments({ status: 'In Progress' });
@@ -54,6 +61,8 @@ router.get('/dashboard', [auth, admin], async (req, res) => {
             stats: {
                 totalUsers: totalCitizens,
                 totalCitizens,
+                activeCitizens,
+                blockedCitizens,
                 totalIssues,
                 pendingIssues,
                 inProgressIssues,
@@ -286,13 +295,17 @@ router.get('/users', [auth, admin], async (req, res) => {
             ];
         }
 
-        if (statusFilter && statusFilter !== 'All') {
-            citizenFilter.status = statusFilter;
+        const normalizedFilterStatus = statusFilter.toLowerCase();
+        if (normalizedFilterStatus === 'active') {
+            citizenFilter.status = { $nin: ['blocked', 'Suspended'] };
+        } else if (normalizedFilterStatus === 'blocked' || normalizedFilterStatus === 'suspended') {
+            citizenFilter.status = { $in: ['blocked', 'Suspended'] };
         }
 
         // Summary Stats (strictly citizens, excluding admins)
         const totalCitizens = await User.countDocuments({ role: { $ne: 'admin' } });
-        const activeCitizens = await User.countDocuments({ role: { $ne: 'admin' }, status: { $ne: 'Suspended' } });
+        const activeCitizens = await User.countDocuments({ role: { $ne: 'admin' }, status: { $nin: ['blocked', 'Suspended'] } });
+        const blockedCitizens = await User.countDocuments({ role: { $ne: 'admin' }, status: { $in: ['blocked', 'Suspended'] } });
         
         // Count distinct citizen reporters
         const citizenUsers = await User.find({ role: { $ne: 'admin' } }).select('_id').lean();
@@ -338,9 +351,11 @@ router.get('/users', [auth, admin], async (req, res) => {
                 resolved: 0,
                 totalUpvotes: 0
             };
+            const isBlocked = user.status === 'blocked' || user.status === 'Suspended';
             return {
                 ...user,
-                status: user.status || 'Active',
+                status: isBlocked ? 'blocked' : 'active',
+                statusDisplay: isBlocked ? 'Blocked' : 'Active',
                 issuesCount: metrics.totalIssues,
                 pendingCount: metrics.pending,
                 inProgressCount: metrics.inProgress,
@@ -374,6 +389,7 @@ router.get('/users', [auth, admin], async (req, res) => {
                 totalCitizens,
                 activeUsers: activeCitizens,
                 activeCitizens,
+                blockedCitizens,
                 usersWithReports,
                 totalIssuesReported
             },
@@ -392,13 +408,13 @@ router.get('/users', [auth, admin], async (req, res) => {
 });
 
 // @route   GET api/admin/users/:id
-// @desc    Get complete user profile with civic activity and reported issues
+// @desc    Get complete user profile with civic activity, reported issues, and moderation history
 // @access  Private/Admin
 router.get('/users/:id', [auth, admin], async (req, res) => {
     try {
         const user = await User.findById(req.params.id).select('-password').lean();
         if (!user) {
-            return res.status(404).json({ msg: 'User not found' });
+            return res.status(404).json({ msg: 'Citizen account not found' });
         }
 
         const issues = await Issue.find({ createdBy: req.params.id })
@@ -429,10 +445,18 @@ router.get('/users/:id', [auth, admin], async (req, res) => {
             };
         });
 
+        // Fetch moderation logs
+        const moderationHistory = await UserModerationHistory.find({ userId: req.params.id })
+            .sort({ createdAt: -1 })
+            .lean();
+
+        const isBlocked = user.status === 'blocked' || user.status === 'Suspended';
+
         res.json({
             user: {
                 ...user,
-                status: user.status || 'Active'
+                status: isBlocked ? 'blocked' : 'active',
+                statusDisplay: isBlocked ? 'Blocked' : 'Active'
             },
             civicActivity: {
                 totalIssues: issues.length,
@@ -441,7 +465,8 @@ router.get('/users/:id', [auth, admin], async (req, res) => {
                 resolvedCount,
                 totalUpvotesReceived: totalUpvotes
             },
-            reportedIssues: normalizedIssues
+            reportedIssues: normalizedIssues,
+            moderationHistory
         });
     } catch (err) {
         console.error('Error fetching user details:', err.message);
@@ -449,35 +474,97 @@ router.get('/users/:id', [auth, admin], async (req, res) => {
     }
 });
 
-// @route   PUT api/admin/users/:id/status
-// @desc    Update user account status (Active / Suspended)
+// @route   PATCH api/admin/users/:userId/block
+// @desc    Block a citizen account with reason and audit log
 // @access  Private/Admin
-router.put('/users/:id/status', [auth, admin], async (req, res) => {
+router.patch('/users/:userId/block', [auth, admin], async (req, res) => {
     try {
-        const { status } = req.body;
-        if (!['Active', 'Suspended'].includes(status)) {
-            return res.status(400).json({ msg: 'Invalid status value' });
+        const { reason } = req.body;
+        const targetUser = await User.findById(req.params.userId);
+
+        if (!targetUser) {
+            return res.status(404).json({ msg: 'Citizen account not found' });
         }
 
-        const user = await User.findById(req.params.id);
-        if (!user) {
-            return res.status(404).json({ msg: 'User not found' });
+        if (targetUser.role === 'admin') {
+            return res.status(400).json({ msg: 'Administrator accounts cannot be blocked' });
         }
 
-        user.status = status;
-        await user.save();
+        targetUser.status = 'blocked';
+        targetUser.blockedReason = reason?.trim() || 'Violation of platform guidelines';
+        targetUser.blockedAt = new Date();
+        targetUser.blockedBy = req.user._id || req.user.id;
+        await targetUser.save();
+
+        // Create moderation audit trail record
+        await UserModerationHistory.create({
+            userId: targetUser._id,
+            action: 'blocked',
+            reason: reason?.trim() || 'Violation of platform guidelines',
+            performedBy: req.user._id || req.user.id,
+            performedByName: req.user.name || 'Admin'
+        });
 
         res.json({
-            msg: `User status updated to ${status}`,
+            msg: `Account for ${targetUser.name} has been blocked successfully`,
             user: {
-                _id: user._id,
-                name: user.name,
-                email: user.email,
-                status: user.status
+                _id: targetUser._id,
+                name: targetUser.name,
+                email: targetUser.email,
+                status: 'blocked',
+                statusDisplay: 'Blocked',
+                blockedReason: targetUser.blockedReason,
+                blockedAt: targetUser.blockedAt
             }
         });
     } catch (err) {
-        console.error('Error updating user status:', err.message);
+        console.error('Error blocking user:', err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
+// @route   PATCH api/admin/users/:userId/unblock
+// @desc    Unblock a citizen account and restore access
+// @access  Private/Admin
+router.patch('/users/:userId/unblock', [auth, admin], async (req, res) => {
+    try {
+        const targetUser = await User.findById(req.params.userId);
+
+        if (!targetUser) {
+            return res.status(404).json({ msg: 'Citizen account not found' });
+        }
+
+        if (targetUser.role === 'admin') {
+            return res.status(400).json({ msg: 'Administrator accounts cannot be modified' });
+        }
+
+        targetUser.status = 'active';
+        targetUser.blockedReason = null;
+        targetUser.blockedAt = null;
+        targetUser.blockedBy = null;
+        await targetUser.save();
+
+        // Create moderation audit trail record
+        await UserModerationHistory.create({
+            userId: targetUser._id,
+            action: 'unblocked',
+            reason: 'Account reinstated by administrator',
+            performedBy: req.user._id || req.user.id,
+            performedByName: req.user.name || 'Admin'
+        });
+
+        res.json({
+            msg: `Account for ${targetUser.name} has been unblocked successfully`,
+            user: {
+                _id: targetUser._id,
+                name: targetUser.name,
+                email: targetUser.email,
+                status: 'active',
+                statusDisplay: 'Active'
+            }
+        });
+    } catch (err) {
+        console.error('Error unblocking user:', err.message);
         res.status(500).send('Server Error');
     }
 });

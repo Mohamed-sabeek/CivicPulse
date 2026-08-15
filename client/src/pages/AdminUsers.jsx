@@ -2,19 +2,26 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { 
     Users, UserCheck, FileText, Search, ArrowUpDown, ChevronLeft, 
     ChevronRight, Eye, Shield, Mail, Phone, Calendar, ArrowLeft,
-    RotateCcw, AlertCircle
+    RotateCcw, AlertCircle, Ban, CheckCircle, UserX, AlertTriangle
 } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import UserDetailsModal from '../components/UserDetailsModal';
 import api from '../utils/api';
 
 const AdminUsers = () => {
+    const location = useLocation();
+    const navigate = useNavigate();
+
+    // Read initial status filter from URL if present (e.g. /admin/users?status=blocked)
+    const initialStatus = new URLSearchParams(location.search).get('status') || 'All';
+
     const [users, setUsers] = useState([]);
     const [stats, setStats] = useState({
-        totalUsers: 0,
-        activeUsers: 0,
+        totalCitizens: 0,
+        activeCitizens: 0,
+        blockedCitizens: 0,
         usersWithReports: 0,
         totalIssuesReported: 0
     });
@@ -22,17 +29,25 @@ const AdminUsers = () => {
         page: 1,
         limit: 10,
         totalUsers: 0,
+        totalCitizens: 0,
         totalPages: 1
     });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [search, setSearch] = useState('');
-    const [statusFilter, setStatusFilter] = useState('All');
+    const [statusFilter, setStatusFilter] = useState(initialStatus);
     const [sortOption, setSortOption] = useState('recent');
     const [selectedUserId, setSelectedUserId] = useState(null);
     const [modalOpen, setModalOpen] = useState(false);
 
-    const navigate = useNavigate();
+    // Block/Unblock Confirmation Modal state
+    const [moderationModal, setModerationModal] = useState({
+        isOpen: false,
+        type: 'block', // 'block' or 'unblock'
+        user: null,
+        reason: '',
+        loading: false
+    });
 
     const fetchUsers = useCallback(async () => {
         setLoading(true);
@@ -49,8 +64,9 @@ const AdminUsers = () => {
             const res = await api.get(`/admin/users?${params.toString()}`);
             setUsers(res.data.users || []);
             setStats(res.data.stats || {
-                totalUsers: 0,
-                activeUsers: 0,
+                totalCitizens: 0,
+                activeCitizens: 0,
+                blockedCitizens: 0,
                 usersWithReports: 0,
                 totalIssuesReported: 0
             });
@@ -58,6 +74,7 @@ const AdminUsers = () => {
                 page: 1,
                 limit: 10,
                 totalUsers: 0,
+                totalCitizens: 0,
                 totalPages: 1
             });
         } catch (err) {
@@ -65,7 +82,7 @@ const AdminUsers = () => {
             if (err.response?.status === 401 || err.response?.status === 403) {
                 navigate('/login');
             } else {
-                setError('Failed to fetch user list. Please verify your connection.');
+                setError('Failed to fetch citizen records. Please verify your connection.');
             }
         } finally {
             setLoading(false);
@@ -96,6 +113,46 @@ const AdminUsers = () => {
         setModalOpen(true);
     };
 
+    const openBlockModal = (user) => {
+        setModerationModal({
+            isOpen: true,
+            type: 'block',
+            user,
+            reason: '',
+            loading: false
+        });
+    };
+
+    const openUnblockModal = (user) => {
+        setModerationModal({
+            isOpen: true,
+            type: 'unblock',
+            user,
+            reason: '',
+            loading: false
+        });
+    };
+
+    const handleConfirmModeration = async () => {
+        if (!moderationModal.user) return;
+        setModerationModal(prev => ({ ...prev, loading: true }));
+        try {
+            if (moderationModal.type === 'block') {
+                await api.patch(`/admin/users/${moderationModal.user._id}/block`, {
+                    reason: moderationModal.reason.trim() || 'Violation of platform guidelines'
+                });
+            } else {
+                await api.patch(`/admin/users/${moderationModal.user._id}/unblock`);
+            }
+            setModerationModal({ isOpen: false, type: 'block', user: null, reason: '', loading: false });
+            fetchUsers();
+        } catch (err) {
+            console.error('Error modifying user standing:', err);
+            alert(err.response?.data?.msg || 'Failed to update citizen account status.');
+            setModerationModal(prev => ({ ...prev, loading: false }));
+        }
+    };
+
     return (
         <div className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-gray-50 flex flex-col font-sans">
             <Navbar />
@@ -115,7 +172,7 @@ const AdminUsers = () => {
                             Citizen Management
                         </h1>
                         <p className="text-gray-500 text-sm mt-1">
-                            View and manage registered CivicPulse citizens and their civic activity.
+                            View and manage registered CivicPulse citizens, activity history, and account moderation.
                         </p>
                     </div>
 
@@ -135,7 +192,11 @@ const AdminUsers = () => {
 
                 {/* 4 Summary Stat Cards */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
-                    <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
+                    {/* Total Citizens */}
+                    <div 
+                        onClick={() => handleStatusFilter('All')}
+                        className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden group hover:shadow-md transition-all cursor-pointer"
+                    >
                         <div className="flex items-center justify-between mb-4">
                             <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl group-hover:scale-110 transition-transform">
                                 <Users size={22} />
@@ -143,11 +204,17 @@ const AdminUsers = () => {
                             <span className="text-[10px] font-black text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md">Total</span>
                         </div>
                         <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Total Citizens</p>
-                        <h3 className="text-3xl font-black text-gray-900 mt-1">{stats.totalCitizens !== undefined ? stats.totalCitizens : stats.totalUsers}</h3>
+                        <h3 className="text-3xl font-black text-gray-900 mt-1">
+                            {stats.totalCitizens !== undefined ? stats.totalCitizens : (stats.totalUsers || 0)}
+                        </h3>
                         <p className="text-[11px] text-gray-400 mt-1">Registered citizen accounts</p>
                     </div>
 
-                    <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
+                    {/* Active Citizens */}
+                    <div 
+                        onClick={() => handleStatusFilter('active')}
+                        className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden group hover:shadow-md transition-all cursor-pointer"
+                    >
                         <div className="flex items-center justify-between mb-4">
                             <div className="p-3 bg-emerald-50 text-emerald-600 rounded-2xl group-hover:scale-110 transition-transform">
                                 <UserCheck size={22} />
@@ -155,22 +222,31 @@ const AdminUsers = () => {
                             <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">Active</span>
                         </div>
                         <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Active Citizens</p>
-                        <h3 className="text-3xl font-black text-gray-900 mt-1">{stats.activeCitizens !== undefined ? stats.activeCitizens : stats.activeUsers}</h3>
-                        <p className="text-[11px] text-gray-400 mt-1">Currently active accounts</p>
+                        <h3 className="text-3xl font-black text-emerald-600 mt-1">
+                            {stats.activeCitizens !== undefined ? stats.activeCitizens : (stats.activeUsers || 0)}
+                        </h3>
+                        <p className="text-[11px] text-gray-400 mt-1">Unrestricted accounts</p>
                     </div>
 
-                    <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
+                    {/* Blocked Citizens */}
+                    <div 
+                        onClick={() => handleStatusFilter('blocked')}
+                        className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden group hover:shadow-md transition-all cursor-pointer"
+                    >
                         <div className="flex items-center justify-between mb-4">
-                            <div className="p-3 bg-purple-50 text-purple-600 rounded-2xl group-hover:scale-110 transition-transform">
-                                <Shield size={22} />
+                            <div className="p-3 bg-red-50 text-red-600 rounded-2xl group-hover:scale-110 transition-transform">
+                                <UserX size={22} />
                             </div>
-                            <span className="text-[10px] font-black text-purple-700 bg-purple-50 px-2 py-0.5 rounded-md">Reporters</span>
+                            <span className="text-[10px] font-black text-red-700 bg-red-50 px-2 py-0.5 rounded-md">Blocked</span>
                         </div>
-                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Reported Issues</p>
-                        <h3 className="text-3xl font-black text-gray-900 mt-1">{stats.usersWithReports}</h3>
-                        <p className="text-[11px] text-gray-400 mt-1">Citizens submitted ≥1 issue</p>
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Blocked Citizens</p>
+                        <h3 className="text-3xl font-black text-red-600 mt-1">
+                            {stats.blockedCitizens || 0}
+                        </h3>
+                        <p className="text-[11px] text-gray-400 mt-1">Restricted accounts</p>
                     </div>
 
+                    {/* Total Issues */}
                     <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
                         <div className="flex items-center justify-between mb-4">
                             <div className="p-3 bg-amber-50 text-amber-600 rounded-2xl group-hover:scale-110 transition-transform">
@@ -179,7 +255,9 @@ const AdminUsers = () => {
                             <span className="text-[10px] font-black text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md">Community</span>
                         </div>
                         <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Total Issues</p>
-                        <h3 className="text-3xl font-black text-gray-900 mt-1">{stats.totalIssuesReported}</h3>
+                        <h3 className="text-3xl font-black text-gray-900 mt-1">
+                            {stats.totalIssuesReported}
+                        </h3>
                         <p className="text-[11px] text-gray-400 mt-1">Submitted across platform</p>
                     </div>
                 </div>
@@ -202,17 +280,21 @@ const AdminUsers = () => {
                         {/* Status Filter Tabs & Sorting */}
                         <div className="flex flex-wrap items-center justify-between w-full md:w-auto gap-3">
                             <div className="flex items-center bg-gray-100 p-1 rounded-2xl">
-                                {['All', 'Active', 'Suspended'].map(st => (
+                                {[
+                                    { key: 'All', label: 'All Citizens' },
+                                    { key: 'active', label: '🟢 Active' },
+                                    { key: 'blocked', label: '🔴 Blocked' }
+                                ].map(tab => (
                                     <button
-                                        key={st}
-                                        onClick={() => handleStatusFilter(st)}
+                                        key={tab.key}
+                                        onClick={() => handleStatusFilter(tab.key)}
                                         className={`px-4 py-1.5 rounded-xl text-xs font-black transition-all ${
-                                            statusFilter === st
+                                            statusFilter.toLowerCase() === tab.key.toLowerCase()
                                                 ? 'bg-white text-indigo-600 shadow-xs'
                                                 : 'text-gray-600 hover:text-gray-900'
                                         }`}
                                     >
-                                        {st === 'All' ? 'All Citizens' : st}
+                                        {tab.label}
                                     </button>
                                 ))}
                             </div>
@@ -292,86 +374,110 @@ const AdminUsers = () => {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-100 text-sm">
-                                        {users.map(u => (
-                                            <tr 
-                                                key={u._id} 
-                                                className="hover:bg-indigo-50/30 transition-colors group"
-                                            >
-                                                <td className="py-4 px-6">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-600 to-blue-500 text-white flex items-center justify-center font-black text-sm shadow-sm shadow-indigo-100 shrink-0">
-                                                            {u.name ? u.name.charAt(0).toUpperCase() : 'U'}
-                                                        </div>
-                                                        <div>
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="font-bold text-gray-900 group-hover:text-indigo-600 transition">
-                                                                    {u.name}
-                                                                </span>
-                                                                {u.role === 'admin' && (
-                                                                    <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-[10px] font-black rounded-md">
-                                                                        Admin
+                                        {users.map(u => {
+                                            const isBlocked = u.status === 'blocked' || u.status === 'Suspended';
+                                            return (
+                                                <tr 
+                                                    key={u._id} 
+                                                    className="hover:bg-indigo-50/30 transition-colors group"
+                                                >
+                                                    <td className="py-4 px-6">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black text-sm shadow-sm shrink-0 ${
+                                                                isBlocked
+                                                                    ? 'bg-gradient-to-tr from-red-600 to-rose-500 text-white shadow-red-100'
+                                                                    : 'bg-gradient-to-tr from-indigo-600 to-blue-500 text-white shadow-indigo-100'
+                                                            }`}>
+                                                                {u.name ? u.name.charAt(0).toUpperCase() : 'C'}
+                                                            </div>
+                                                            <div>
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="font-bold text-gray-900 group-hover:text-indigo-600 transition">
+                                                                        {u.name}
                                                                     </span>
-                                                                )}
+                                                                </div>
+                                                                <span className="text-xs text-gray-400 block sm:hidden">
+                                                                    {u.email}
+                                                                </span>
                                                             </div>
-                                                            <span className="text-xs text-gray-400 block sm:hidden">
+                                                        </div>
+                                                    </td>
+                                                    <td className="py-4 px-6">
+                                                        <div className="space-y-1">
+                                                            <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-600">
+                                                                <Mail size={13} className="text-gray-400" />
                                                                 {u.email}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td className="py-4 px-6">
-                                                    <div className="space-y-1">
-                                                        <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-600">
-                                                            <Mail size={13} className="text-gray-400" />
-                                                            {u.email}
-                                                        </div>
-                                                        {u.phone && (
-                                                            <div className="flex items-center gap-1.5 text-xs text-gray-400">
-                                                                <Phone size={13} className="text-gray-400" />
-                                                                {u.phone}
                                                             </div>
-                                                        )}
-                                                    </div>
-                                                </td>
-                                                <td className="py-4 px-6 text-center">
-                                                    <div className="inline-flex flex-col items-center">
-                                                        <span className="px-3 py-1 bg-indigo-50 text-indigo-700 text-xs font-black rounded-xl border border-indigo-100">
-                                                            {u.issuesCount} {u.issuesCount === 1 ? 'Issue' : 'Issues'}
-                                                        </span>
-                                                        {u.issuesCount > 0 && (
-                                                            <span className="text-[10px] text-gray-400 font-bold mt-0.5">
-                                                                {u.resolvedCount} Resolved
+                                                            {u.phone && (
+                                                                <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                                                                    <Phone size={13} className="text-gray-400" />
+                                                                    {u.phone}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                    <td className="py-4 px-6 text-center">
+                                                        <div className="inline-flex flex-col items-center">
+                                                            <span className="px-3 py-1 bg-indigo-50 text-indigo-700 text-xs font-black rounded-xl border border-indigo-100">
+                                                                {u.issuesCount} {u.issuesCount === 1 ? 'Issue' : 'Issues'}
                                                             </span>
-                                                        )}
-                                                    </div>
-                                                </td>
-                                                <td className="py-4 px-6 text-center">
-                                                    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black border ${
-                                                        u.status === 'Suspended'
-                                                            ? 'bg-red-50 text-red-700 border-red-200'
-                                                            : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                                    }`}>
-                                                        <span className={`w-1.5 h-1.5 rounded-full ${u.status === 'Suspended' ? 'bg-red-500' : 'bg-emerald-500'}`} />
-                                                        {u.status || 'Active'}
-                                                    </span>
-                                                </td>
-                                                <td className="py-4 px-6 text-xs text-gray-500 font-medium">
-                                                    <div className="flex items-center gap-1.5">
-                                                        <Calendar size={13} className="text-gray-400" />
-                                                        {new Date(u.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
-                                                    </div>
-                                                </td>
-                                                <td className="py-4 px-6 text-right">
-                                                    <button
-                                                        onClick={() => openUserDetails(u._id)}
-                                                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-gray-50 hover:bg-indigo-50 text-gray-700 hover:text-indigo-600 text-xs font-black rounded-xl transition border border-gray-200 hover:border-indigo-200 shadow-2xs active:scale-95"
-                                                    >
-                                                        <Eye size={14} />
-                                                        <span>View</span>
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        ))}
+                                                            {u.issuesCount > 0 && (
+                                                                <span className="text-[10px] text-gray-400 font-bold mt-0.5">
+                                                                    {u.resolvedCount} Resolved
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                    <td className="py-4 px-6 text-center">
+                                                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black border ${
+                                                            isBlocked
+                                                                ? 'bg-red-50 text-red-700 border-red-200'
+                                                                : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                                        }`}>
+                                                            <span className={`w-1.5 h-1.5 rounded-full ${isBlocked ? 'bg-red-500' : 'bg-emerald-500'}`} />
+                                                            {isBlocked ? 'Blocked' : 'Active'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="py-4 px-6 text-xs text-gray-500 font-medium">
+                                                        <div className="flex items-center gap-1.5">
+                                                            <Calendar size={13} className="text-gray-400" />
+                                                            {new Date(u.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                        </div>
+                                                    </td>
+                                                    <td className="py-4 px-6 text-right">
+                                                        <div className="flex items-center justify-end gap-2">
+                                                            <button
+                                                                onClick={() => openUserDetails(u._id)}
+                                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 hover:bg-indigo-50 text-gray-700 hover:text-indigo-600 text-xs font-black rounded-xl transition border border-gray-200 hover:border-indigo-200 shadow-2xs active:scale-95"
+                                                            >
+                                                                <Eye size={13} />
+                                                                <span>View</span>
+                                                            </button>
+
+                                                            {isBlocked ? (
+                                                                <button
+                                                                    onClick={() => openUnblockModal(u)}
+                                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-black rounded-xl transition border border-emerald-200 shadow-2xs active:scale-95"
+                                                                    title="Unblock account"
+                                                                >
+                                                                    <CheckCircle size={13} />
+                                                                    <span>Unblock</span>
+                                                                </button>
+                                                            ) : (
+                                                                <button
+                                                                    onClick={() => openBlockModal(u)}
+                                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-black rounded-xl transition border border-red-200 shadow-2xs active:scale-95"
+                                                                    title="Block account"
+                                                                >
+                                                                    <Ban size={13} />
+                                                                    <span>Block</span>
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
                                     </tbody>
                                 </table>
                             </div>
@@ -443,6 +549,101 @@ const AdminUsers = () => {
                 }}
                 onUserStatusUpdated={fetchUsers}
             />
+
+            {/* Block Confirmation Modal */}
+            {moderationModal.isOpen && moderationModal.type === 'block' && (
+                <div className="fixed inset-0 z-60 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
+                    <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl border border-gray-100 space-y-5 animate-in zoom-in-95 duration-150">
+                        <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center shrink-0">
+                                <Ban size={24} />
+                            </div>
+                            <div>
+                                <h4 className="text-lg font-black text-gray-900">Block this account?</h4>
+                                <p className="text-xs text-gray-500 font-bold">Citizen: {moderationModal.user?.name} ({moderationModal.user?.email})</p>
+                            </div>
+                        </div>
+
+                        <div className="p-4 bg-amber-50/70 border border-amber-200/60 rounded-2xl flex items-start gap-2.5 text-xs text-amber-800 leading-relaxed">
+                            <AlertTriangle size={18} className="text-amber-600 shrink-0 mt-0.5" />
+                            <p>
+                                This citizen will no longer be able to access or interact with CivicPulse. Their existing civic reports and activity history will be preserved.
+                            </p>
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-black text-gray-700 uppercase tracking-wider mb-2">
+                                Reason for blocking (optional):
+                            </label>
+                            <textarea
+                                rows={3}
+                                value={moderationModal.reason}
+                                onChange={(e) => setModerationModal(prev => ({ ...prev, reason: e.target.value }))}
+                                placeholder="Repeated spam reports / abusive comments / misuse of platform..."
+                                className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium text-gray-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-red-500 transition resize-none"
+                            />
+                        </div>
+
+                        <div className="flex items-center justify-end gap-3 pt-2">
+                            <button
+                                onClick={() => setModerationModal({ isOpen: false, type: 'block', user: null, reason: '', loading: false })}
+                                disabled={moderationModal.loading}
+                                className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-xl transition"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleConfirmModeration}
+                                disabled={moderationModal.loading}
+                                className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition shadow-sm shadow-red-200 flex items-center gap-1.5"
+                            >
+                                {moderationModal.loading ? 'Blocking...' : 'Block Account'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Unblock Confirmation Modal */}
+            {moderationModal.isOpen && moderationModal.type === 'unblock' && (
+                <div className="fixed inset-0 z-60 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
+                    <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl border border-gray-100 space-y-5 animate-in zoom-in-95 duration-150">
+                        <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                                <CheckCircle size={24} />
+                            </div>
+                            <div>
+                                <h4 className="text-lg font-black text-gray-900">Unblock this account?</h4>
+                                <p className="text-xs text-gray-500 font-bold">Citizen: {moderationModal.user?.name} ({moderationModal.user?.email})</p>
+                            </div>
+                        </div>
+
+                        <div className="p-4 bg-emerald-50/70 border border-emerald-200/60 rounded-2xl flex items-start gap-2.5 text-xs text-emerald-800 leading-relaxed">
+                            <CheckCircle size={18} className="text-emerald-600 shrink-0 mt-0.5" />
+                            <p>
+                                This citizen will regain access to CivicPulse and will be able to report and interact with civic issues again.
+                            </p>
+                        </div>
+
+                        <div className="flex items-center justify-end gap-3 pt-2">
+                            <button
+                                onClick={() => setModerationModal({ isOpen: false, type: 'unblock', user: null, reason: '', loading: false })}
+                                disabled={moderationModal.loading}
+                                className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-xl transition"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleConfirmModeration}
+                                disabled={moderationModal.loading}
+                                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition shadow-sm shadow-emerald-200 flex items-center gap-1.5"
+                            >
+                                {moderationModal.loading ? 'Unblocking...' : 'Unblock Account'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

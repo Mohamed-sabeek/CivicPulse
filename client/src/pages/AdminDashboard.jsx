@@ -5,7 +5,7 @@ import Footer from '../components/Footer';
 import api from '../utils/api';
 import { 
     Users, FileText, CheckCircle, AlertCircle, Trash2, ArrowRight, 
-    Activity, Calendar, History, ThumbsUp, MapPin, Eye, Sparkles 
+    Activity, Calendar, History, ThumbsUp, MapPin, Eye, Sparkles, UserX 
 } from 'lucide-react';
 import AdminSkeleton from '../components/AdminSkeleton';
 import StatusDropdown from '../components/StatusDropdown';
@@ -15,6 +15,9 @@ const AdminDashboard = () => {
     const [loading, setLoading] = useState(true);
     const [stats, setStats] = useState({
         totalUsers: 0,
+        totalCitizens: 0,
+        activeCitizens: 0,
+        blockedCitizens: 0,
         totalIssues: 0,
         pendingIssues: 0,
         inProgressIssues: 0,
@@ -29,6 +32,9 @@ const AdminDashboard = () => {
             const res = await api.get('/admin/dashboard');
             setStats(res.data.stats || {
                 totalUsers: 0,
+                totalCitizens: 0,
+                activeCitizens: 0,
+                blockedCitizens: 0,
                 totalIssues: 0,
                 pendingIssues: 0,
                 inProgressIssues: 0,
@@ -93,7 +99,7 @@ const AdminDashboard = () => {
             icon: Users, 
             lightColor: 'bg-indigo-50', 
             textColor: 'text-indigo-600',
-            desc: 'Registered citizens',
+            desc: stats.blockedCitizens > 0 ? `${stats.activeCitizens || 0} active • ${stats.blockedCitizens} blocked` : 'Registered citizens',
             onClick: () => navigate('/admin/users')
         },
         { 
@@ -130,6 +136,15 @@ const AdminDashboard = () => {
             desc: 'Successfully fixed',
             onClick: () => navigate('/admin/history?status=Resolved')
         },
+        ...(stats.blockedCitizens > 0 ? [{
+            title: 'Blocked Citizens',
+            value: stats.blockedCitizens,
+            icon: UserX,
+            lightColor: 'bg-red-50',
+            textColor: 'text-red-600',
+            desc: 'Restricted accounts',
+            onClick: () => navigate('/admin/users?status=blocked')
+        }] : [])
     ];
 
     return (

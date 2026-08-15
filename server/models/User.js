@@ -19,8 +19,18 @@ const UserSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ['Active', 'Suspended'],
-        default: 'Active',
+        enum: ['active', 'blocked', 'Active', 'Suspended'],
+        default: 'active',
+    },
+    blockedReason: {
+        type: String,
+    },
+    blockedAt: {
+        type: Date,
+    },
+    blockedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
     },
     role: {
         type: String,
