@@ -24,11 +24,13 @@ const TrendingIssues = () => {
         };
 
         const fetchUser = async () => {
+            const token = localStorage.getItem('token');
+            if (!token) return;
             try {
                 const res = await api.get('/auth/user');
                 setUser(res.data);
-            } catch (err) {
-                console.error('Error fetching user:', err);
+            } catch {
+                setUser(null);
             }
         };
 
