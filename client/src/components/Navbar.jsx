@@ -111,26 +111,20 @@ const Navbar = () => {
                     {/* Logo */}
                     <div className="flex items-center">
                         {token ? (
-                            <div className="flex items-center gap-2.5 select-none cursor-default">
+                            <div className="flex items-center select-none cursor-default">
                                 <img 
                                     src={civicPulseLogo} 
-                                    alt="CivicPulse Logo" 
-                                    className="h-10 w-10 object-contain rounded-xl shadow-sm"
+                                    alt="CivicPulse" 
+                                    className="h-10 sm:h-11 w-auto object-contain rounded-xl"
                                 />
-                                <span className="text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-blue-500 tracking-tight">
-                                    CivicPulse
-                                </span>
                             </div>
                         ) : (
-                            <Link to="/" onClick={handleScrollToHome} className="group flex items-center gap-2.5 transition-transform duration-300 ease-out active:scale-95">
+                            <Link to="/" onClick={handleScrollToHome} className="group flex items-center transition-transform duration-300 ease-out active:scale-95">
                                 <img 
                                     src={civicPulseLogo} 
-                                    alt="CivicPulse Logo" 
-                                    className="h-10 w-10 object-contain rounded-xl shadow-sm group-hover:scale-105 transition-transform duration-300"
+                                    alt="CivicPulse" 
+                                    className="h-10 sm:h-11 w-auto object-contain rounded-xl group-hover:scale-105 transition-transform duration-300"
                                 />
-                                <span className="text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-blue-500 tracking-tight">
-                                    CivicPulse
-                                </span>
                             </Link>
                         )}
                     </div>
