@@ -3,7 +3,7 @@ import {
     X, User, Mail, Phone, Calendar, Shield, AlertCircle, 
     CheckCircle2, Clock, ThumbsUp, MapPin, 
     Activity, Ban, CheckCircle, AlertTriangle, History, Flag, 
-    ShieldAlert, Check, ArrowRight
+    ShieldAlert, ArrowRight, ExternalLink
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../utils/api';
@@ -19,15 +19,6 @@ const UserDetailsModal = ({ userId, isOpen, onClose, onUserStatusUpdated }) => {
     const [moderationAction, setModerationAction] = useState('block'); // 'block' or 'unblock'
     const [blockReason, setBlockReason] = useState('');
     const [actionLoading, setActionLoading] = useState(false);
-
-    // Comment Report Moderation Modal state
-    const [reportActionModal, setReportActionModal] = useState({
-        isOpen: false,
-        reportId: null,
-        targetStatus: null, // 'dismissed' | 'resolved'
-        reportText: '',
-        loading: false
-    });
 
     const fetchUserDetails = useCallback(async () => {
         if (!userId) return;
@@ -75,32 +66,16 @@ const UserDetailsModal = ({ userId, isOpen, onClose, onUserStatusUpdated }) => {
         }
     };
 
-    const handleConfirmReportAction = async () => {
-        if (!reportActionModal.reportId || !reportActionModal.targetStatus) return;
-        setReportActionModal(prev => ({ ...prev, loading: true }));
-        try {
-            await api.patch(`/admin/comment-reports/${reportActionModal.reportId}/status`, {
-                status: reportActionModal.targetStatus
-            });
-            setReportActionModal({
-                isOpen: false,
-                reportId: null,
-                targetStatus: null,
-                reportText: '',
-                loading: false
-            });
-            fetchUserDetails();
-        } catch (err) {
-            console.error('Failed to moderate comment report:', err);
-            alert(err.response?.data?.msg || 'Failed to update report status.');
-            setReportActionModal(prev => ({ ...prev, loading: false }));
-        }
-    };
-
     const handleNavigateToIssue = (issueId) => {
         if (!issueId) return;
         onClose();
         navigate(`/admin/issues/${issueId}`);
+    };
+
+    const handleNavigateToReport = (reportId) => {
+        if (!reportId) return;
+        onClose();
+        navigate(`/admin/reports?reportId=${reportId}`);
     };
 
     if (!isOpen) return null;
@@ -118,6 +93,10 @@ const UserDetailsModal = ({ userId, isOpen, onClose, onUserStatusUpdated }) => {
     const moderationLogs = userData?.moderationHistory || [];
     const reportsByCitizen = userData?.commentsReportedByCitizen || [];
     const reportsAgainstCitizen = userData?.commentsReportedAgainstCitizen || [];
+
+    const reportsSubmitted = reportsByCitizen.length;
+    const reportsResolved = reportsByCitizen.filter(r => r.status === 'resolved').length;
+    const reportsDismissed = reportsByCitizen.filter(r => r.status === 'dismissed').length;
 
     const getStatusBadge = (status) => {
         switch (status) {
@@ -147,7 +126,7 @@ const UserDetailsModal = ({ userId, isOpen, onClose, onUserStatusUpdated }) => {
             case 'resolved':
                 return (
                     <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-200">
-                        <Check size={10} /> 🟢 RESOLVED
+                        🟢 RESOLVED
                     </span>
                 );
             case 'dismissed':
@@ -183,7 +162,7 @@ const UserDetailsModal = ({ userId, isOpen, onClose, onUserStatusUpdated }) => {
                         </div>
                         <div>
                             <h2 className="text-xl font-black text-gray-900 tracking-tight">Citizen Profile & Activity Record</h2>
-                            <p className="text-xs text-gray-500 font-medium">Participation metrics, historical issues, and discussion moderation</p>
+                            <p className="text-xs text-gray-500 font-medium">Participation metrics, historical issues, and civic summary</p>
                         </div>
                     </div>
                     <button
@@ -336,6 +315,29 @@ const UserDetailsModal = ({ userId, isOpen, onClose, onUserStatusUpdated }) => {
                                 </div>
                             </div>
 
+                            {/* Moderation & Report Record Summary */}
+                            <div className="bg-gradient-to-r from-red-50/40 via-white to-gray-50 p-4 rounded-2xl border border-gray-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                <div>
+                                    <h4 className="text-xs font-black text-gray-900 uppercase tracking-wider flex items-center gap-1.5">
+                                        <Flag size={14} className="text-red-500" />
+                                        Comment Report Moderation Overview
+                                    </h4>
+                                    <p className="text-xs text-gray-500 mt-0.5">
+                                        Reports Submitted: <strong className="text-gray-900">{reportsSubmitted}</strong> • Resolved: <strong className="text-emerald-700">{reportsResolved}</strong> • Dismissed: <strong className="text-gray-700">{reportsDismissed}</strong>
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        onClose();
+                                        navigate('/admin/reports');
+                                    }}
+                                    className="px-4 py-2 bg-white border border-gray-200 hover:border-indigo-300 hover:text-indigo-600 text-gray-700 text-xs font-bold rounded-xl transition shadow-2xs flex items-center gap-1.5 shrink-0"
+                                >
+                                    <span>Manage in Reports Page</span>
+                                    <ArrowRight size={13} />
+                                </button>
+                            </div>
+
                             {/* Preserved Reported Issues Feed */}
                             <div>
                                 <div className="flex items-center justify-between mb-4">
@@ -410,7 +412,7 @@ const UserDetailsModal = ({ userId, isOpen, onClose, onUserStatusUpdated }) => {
                                 )}
                             </div>
 
-                            {/* Section: Comments Reported By This Citizen */}
+                            {/* Section: Comments Reported By This Citizen (Read-Only with View Report Action) */}
                             <div>
                                 <div className="flex items-center justify-between mb-4">
                                     <div className="flex items-center gap-2">
@@ -460,11 +462,6 @@ const UserDetailsModal = ({ userId, isOpen, onClose, onUserStatusUpdated }) => {
                                                             <Flag size={13} />
                                                             <span>Reason: {rep.reason}</span>
                                                         </p>
-                                                        {rep.details && (
-                                                            <p className="text-gray-500 text-[11px]">
-                                                                <span className="font-bold">Details:</span> {rep.details}
-                                                            </p>
-                                                        )}
                                                     </div>
 
                                                     <div className="flex items-center gap-2 pt-2 sm:pt-0">
@@ -475,36 +472,13 @@ const UserDetailsModal = ({ userId, isOpen, onClose, onUserStatusUpdated }) => {
                                                             <span>View Issue</span>
                                                             <ArrowRight size={13} />
                                                         </button>
-
-                                                        {rep.status === 'pending' && (
-                                                            <>
-                                                                <button
-                                                                    onClick={() => setReportActionModal({
-                                                                        isOpen: true,
-                                                                        reportId: rep._id,
-                                                                        targetStatus: 'dismissed',
-                                                                        reportText: rep.commentText,
-                                                                        loading: false
-                                                                    })}
-                                                                    className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-xl transition shadow-2xs"
-                                                                >
-                                                                    Dismiss
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => setReportActionModal({
-                                                                        isOpen: true,
-                                                                        reportId: rep._id,
-                                                                        targetStatus: 'resolved',
-                                                                        reportText: rep.commentText,
-                                                                        loading: false
-                                                                    })}
-                                                                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition shadow-2xs"
-                                                                >
-                                                                    <Check size={12} />
-                                                                    <span>Resolve</span>
-                                                                </button>
-                                                            </>
-                                                        )}
+                                                        <button
+                                                            onClick={() => handleNavigateToReport(rep._id)}
+                                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-xl transition border border-indigo-200 shadow-2xs"
+                                                        >
+                                                            <span>View Report</span>
+                                                            <ExternalLink size={12} />
+                                                        </button>
                                                     </div>
                                                 </div>
                                             </div>
@@ -513,7 +487,7 @@ const UserDetailsModal = ({ userId, isOpen, onClose, onUserStatusUpdated }) => {
                                 )}
                             </div>
 
-                            {/* Section: Comments Reported Against This Citizen */}
+                            {/* Section: Comments Reported Against This Citizen (Read-Only with View Report Action) */}
                             <div>
                                 <div className="flex items-center justify-between mb-4">
                                     <div className="flex items-center gap-2">
@@ -569,11 +543,6 @@ const UserDetailsModal = ({ userId, isOpen, onClose, onUserStatusUpdated }) => {
                                                             <Flag size={13} />
                                                             <span>Report Reason: {rep.reason}</span>
                                                         </p>
-                                                        {rep.details && (
-                                                            <p className="text-gray-500 text-[11px]">
-                                                                <span className="font-bold">Details:</span> {rep.details}
-                                                            </p>
-                                                        )}
                                                     </div>
 
                                                     <div className="flex items-center gap-2 pt-2 sm:pt-0">
@@ -584,36 +553,13 @@ const UserDetailsModal = ({ userId, isOpen, onClose, onUserStatusUpdated }) => {
                                                             <span>View Issue</span>
                                                             <ArrowRight size={13} />
                                                         </button>
-
-                                                        {rep.status === 'pending' && (
-                                                            <>
-                                                                <button
-                                                                    onClick={() => setReportActionModal({
-                                                                        isOpen: true,
-                                                                        reportId: rep._id,
-                                                                        targetStatus: 'dismissed',
-                                                                        reportText: rep.commentText,
-                                                                        loading: false
-                                                                    })}
-                                                                    className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-xl transition shadow-2xs"
-                                                                >
-                                                                    Dismiss
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => setReportActionModal({
-                                                                        isOpen: true,
-                                                                        reportId: rep._id,
-                                                                        targetStatus: 'resolved',
-                                                                        reportText: rep.commentText,
-                                                                        loading: false
-                                                                    })}
-                                                                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition shadow-2xs"
-                                                                >
-                                                                    <Check size={12} />
-                                                                    <span>Resolve</span>
-                                                                </button>
-                                                            </>
-                                                        )}
+                                                        <button
+                                                            onClick={() => handleNavigateToReport(rep._id)}
+                                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-xl transition border border-indigo-200 shadow-2xs"
+                                                        >
+                                                            <span>View Report</span>
+                                                            <ExternalLink size={12} />
+                                                        </button>
                                                     </div>
                                                 </div>
                                             </div>
@@ -736,73 +682,6 @@ const UserDetailsModal = ({ userId, isOpen, onClose, onUserStatusUpdated }) => {
                                 }`}
                             >
                                 {actionLoading ? 'Processing...' : (moderationAction === 'block' ? 'Confirm Block' : 'Confirm Unblock')}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Comment Report Moderation (Dismiss / Resolve) Confirmation Modal */}
-            {reportActionModal.isOpen && (
-                <div className="fixed inset-0 z-60 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
-                    <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl border border-gray-100 space-y-5 animate-in zoom-in-95 duration-150">
-                        <div className="flex items-center gap-3">
-                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${
-                                reportActionModal.targetStatus === 'resolved' 
-                                    ? 'bg-emerald-50 text-emerald-600' 
-                                    : 'bg-gray-100 text-gray-600'
-                            }`}>
-                                {reportActionModal.targetStatus === 'resolved' ? <Check size={24} /> : <X size={24} />}
-                            </div>
-                            <div>
-                                <h4 className="text-lg font-black text-gray-900">
-                                    {reportActionModal.targetStatus === 'resolved' ? 'Resolve this report?' : 'Dismiss this report?'}
-                                </h4>
-                                <p className="text-xs text-gray-500 font-bold">This decision will be final.</p>
-                            </div>
-                        </div>
-
-                        {reportActionModal.reportText && (
-                            <div className="bg-gray-50 p-3.5 rounded-2xl border border-gray-200/70 text-xs">
-                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Reported Comment:</span>
-                                <p className="italic text-gray-700">"{reportActionModal.reportText}"</p>
-                            </div>
-                        )}
-
-                        <div className={`p-4 rounded-2xl text-xs leading-relaxed ${
-                            reportActionModal.targetStatus === 'resolved'
-                                ? 'bg-emerald-50 text-emerald-800 border border-emerald-100'
-                                : 'bg-gray-50 text-gray-700 border border-gray-200'
-                        }`}>
-                            {reportActionModal.targetStatus === 'resolved' ? (
-                                <p>
-                                    Marking this report as <strong>RESOLVED</strong> will notify the citizen who submitted the report. The decision is permanent and cannot be reversed.
-                                </p>
-                            ) : (
-                                <p>
-                                    Marking this report as <strong>DISMISSED</strong> will archive the report with no notification sent to the reporter. The decision is permanent.
-                                </p>
-                            )}
-                        </div>
-
-                        <div className="flex items-center justify-end gap-3 pt-2">
-                            <button
-                                onClick={() => setReportActionModal({ isOpen: false, reportId: null, targetStatus: null, reportText: '', loading: false })}
-                                disabled={reportActionModal.loading}
-                                className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-xl transition"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleConfirmReportAction}
-                                disabled={reportActionModal.loading}
-                                className={`px-5 py-2.5 text-white text-xs font-bold rounded-xl transition shadow-md flex items-center gap-1.5 ${
-                                    reportActionModal.targetStatus === 'resolved'
-                                        ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200'
-                                        : 'bg-gray-800 hover:bg-gray-900 shadow-gray-200'
-                                }`}
-                            >
-                                {reportActionModal.loading ? 'Saving...' : (reportActionModal.targetStatus === 'resolved' ? 'Confirm Resolve' : 'Confirm Dismiss')}
                             </button>
                         </div>
                     </div>

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
     Search, Filter, Calendar, MapPin, User, ThumbsUp, CheckCircle, 
-    Clock, ArrowLeft, ArrowUpDown, Timer, Eye, AlertCircle, History, Sparkles 
+    Clock, ArrowLeft, ArrowUpDown, Timer, Eye, AlertCircle, History, Sparkles, Flag, Users 
 } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
@@ -23,19 +23,19 @@ const calculateResolutionTime = (createdAt, resolvedAt, updatedAt) => {
         return `${days}d ${remainingHrs}h`;
     }
     if (diffHrs > 0) {
-        return `${diffHrs}h`;
+        return `${diffHrs} hour${diffHrs > 1 ? 's' : ''}`;
     }
     const mins = Math.max(1, Math.floor(diffMs / (1000 * 60)));
-    return `${mins}m`;
+    return `${mins} minute${mins > 1 ? 's' : ''}`;
 };
 
 const AdminIssueHistory = () => {
     const [issues, setIssues] = useState([]);
     const [filteredIssues, setFilteredIssues] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('All');
-    const [sortBy, setSortBy] = useState('Most Recent');
+    const [searchTerm, setSearchTerm] = useState('');
+    const [sortBy, setSortBy] = useState('Newest First');
     const [selectedTimelineIssueId, setSelectedTimelineIssueId] = useState(null);
     const navigate = useNavigate();
 
@@ -46,7 +46,7 @@ const AdminIssueHistory = () => {
                 setIssues(res.data.issues || []);
                 setFilteredIssues(res.data.issues || []);
             } catch (err) {
-                console.error('Failed to fetch issue history:', err);
+                console.error('Error fetching issue history:', err);
                 if (err.response?.status === 401 || err.response?.status === 403) {
                     navigate('/login');
                 }
@@ -64,29 +64,28 @@ const AdminIssueHistory = () => {
         // Status Filter
         if (statusFilter !== 'All') {
             if (statusFilter === 'Pending') {
-                result = result.filter(issue => issue.status === 'Open' || issue.status === 'Pending');
+                result = result.filter(i => i.status === 'Open' || i.status === 'Pending');
             } else {
-                result = result.filter(issue => issue.status === statusFilter);
+                result = result.filter(i => i.status === statusFilter);
             }
         }
 
         // Search Filter
         if (searchTerm.trim()) {
-            const query = searchTerm.toLowerCase();
-            result = result.filter(issue =>
-                issue.title?.toLowerCase().includes(query) ||
-                issue.description?.toLowerCase().includes(query) ||
-                issue.location?.toLowerCase().includes(query) ||
-                issue.category?.toLowerCase().includes(query) ||
-                issue.createdBy?.name?.toLowerCase().includes(query) ||
-                issue.createdBy?.email?.toLowerCase().includes(query)
+            const term = searchTerm.toLowerCase();
+            result = result.filter(i =>
+                i.title.toLowerCase().includes(term) ||
+                (i.description && i.description.toLowerCase().includes(term)) ||
+                (i.location && i.location.toLowerCase().includes(term)) ||
+                (i.category && i.category.toLowerCase().includes(term)) ||
+                (i.createdBy?.name && i.createdBy.name.toLowerCase().includes(term))
             );
         }
 
-        // Sort Logic
-        if (sortBy === 'Most Recent') {
+        // Sorting
+        if (sortBy === 'Newest First') {
             result.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-        } else if (sortBy === 'Oldest') {
+        } else if (sortBy === 'Oldest First') {
             result.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
         } else if (sortBy === 'Most Supported') {
             result.sort((a, b) => (b.upvotes?.length || 0) - (a.upvotes?.length || 0));
@@ -154,6 +153,23 @@ const AdminIssueHistory = () => {
                             <p className="text-gray-500 mt-1 text-sm font-medium">
                                 Complete repository of community civic reports, timeline tracking, and resolution analytics.
                             </p>
+                        </div>
+
+                        <div className="flex items-center gap-2.5 flex-wrap">
+                            <Link
+                                to="/admin/reports"
+                                className="inline-flex items-center gap-1.5 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold rounded-xl transition border border-red-100 shadow-xs"
+                            >
+                                <Flag size={14} className="text-red-500" />
+                                <span>Reports</span>
+                            </Link>
+                            <Link
+                                to="/admin/users"
+                                className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-xl transition border border-indigo-100 shadow-xs"
+                            >
+                                <Users size={14} className="text-indigo-600" />
+                                <span>Citizens</span>
+                            </Link>
                         </div>
                     </div>
 

@@ -16,6 +16,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import AdminIssueHistory from './pages/AdminIssueHistory';
 import AdminUsers from './pages/AdminUsers';
 import AdminIssueDetails from './pages/AdminIssueDetails';
+import AdminReports from './pages/AdminReports';
 import ResolvedIssues from './pages/ResolvedIssues';
 import Notifications from './pages/Notifications';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -47,6 +48,7 @@ function App() {
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/admin/history" element={<AdminIssueHistory />} />
         <Route path="/admin/users" element={<AdminUsers />} />
+        <Route path="/admin/reports" element={<AdminReports />} />
         <Route path="/admin/issues/:id" element={<AdminIssueDetails />} />
         <Route path="/resolved" element={<ResolvedIssues />} />
         <Route

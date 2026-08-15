@@ -5,7 +5,7 @@ import Footer from '../components/Footer';
 import api from '../utils/api';
 import { 
     Users, FileText, CheckCircle, AlertCircle, Trash2, ArrowRight, 
-    Activity, Calendar, History, ThumbsUp, MapPin, Eye, Sparkles, UserX 
+    Activity, Calendar, History, ThumbsUp, MapPin, Eye, Sparkles, UserX, Flag 
 } from 'lucide-react';
 import AdminSkeleton from '../components/AdminSkeleton';
 import StatusDropdown from '../components/StatusDropdown';
@@ -21,7 +21,8 @@ const AdminDashboard = () => {
         totalIssues: 0,
         pendingIssues: 0,
         inProgressIssues: 0,
-        resolvedIssues: 0
+        resolvedIssues: 0,
+        pendingReports: 0
     });
     const [activeIssues, setActiveIssues] = useState([]);
     const [selectedTimelineIssueId, setSelectedTimelineIssueId] = useState(null);
@@ -38,7 +39,8 @@ const AdminDashboard = () => {
                 totalIssues: 0,
                 pendingIssues: 0,
                 inProgressIssues: 0,
-                resolvedIssues: 0
+                resolvedIssues: 0,
+                pendingReports: 0
             });
             setActiveIssues(res.data.activeIssues || []);
         } catch (err) {
@@ -101,6 +103,15 @@ const AdminDashboard = () => {
             textColor: 'text-indigo-600',
             desc: stats.blockedCitizens > 0 ? `${stats.activeCitizens || 0} active • ${stats.blockedCitizens} blocked` : 'Registered citizens',
             onClick: () => navigate('/admin/users')
+        },
+        { 
+            title: 'Pending Reports', 
+            value: stats.pendingReports || 0, 
+            icon: Flag, 
+            lightColor: 'bg-red-50', 
+            textColor: 'text-red-600',
+            desc: stats.pendingReports > 0 ? 'Requires immediate review' : 'No pending reports',
+            onClick: () => navigate('/admin/reports?status=pending')
         },
         { 
             title: 'Total Issues', 
@@ -170,7 +181,23 @@ const AdminDashboard = () => {
                         </div>
 
                         {/* Navigation actions */}
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3 flex-wrap">
+                            <Link
+                                to="/admin/reports"
+                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 hover:border-red-300 hover:bg-red-50/50 text-gray-800 hover:text-red-600 rounded-2xl text-xs font-black uppercase tracking-wider shadow-sm transition-all active:scale-95"
+                            >
+                                <Flag size={16} className="text-red-500" />
+                                <span>Reports</span>
+                                {stats.pendingReports > 0 ? (
+                                    <span className="px-2 py-0.5 bg-red-500 text-white font-black rounded-full text-[10px] animate-pulse">
+                                        {stats.pendingReports}
+                                    </span>
+                                ) : (
+                                    <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full text-[10px]">
+                                        0
+                                    </span>
+                                )}
+                            </Link>
                             <Link
                                 to="/admin/users"
                                 className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/50 text-gray-800 hover:text-indigo-600 rounded-2xl text-xs font-black uppercase tracking-wider shadow-sm transition-all active:scale-95"

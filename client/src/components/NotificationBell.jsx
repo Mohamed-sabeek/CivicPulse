@@ -121,12 +121,16 @@ const NotificationBell = () => {
 
         setIsOpen(false);
 
-        // Navigate to appropriate issue page (Admin gets admin view, Citizen gets citizen details)
-        if (notif.issueId) {
-            const user = getUserFromToken();
-            if (user?.role === 'admin') {
+        // Navigate to appropriate page (Admin gets admin reports or admin issue details, Citizen gets citizen details)
+        const user = getUserFromToken();
+        if (user?.role === 'admin') {
+            if (notif.type === 'NEW_COMMENT_REPORT' || notif.type === 'COMMENT_REPORT' || notif.type === 'comment_reported') {
+                navigate(notif.reportId ? `/admin/reports?reportId=${notif.reportId}` : '/admin/reports');
+            } else if (notif.issueId) {
                 navigate(`/admin/issues/${notif.issueId}`);
-            } else {
+            }
+        } else {
+            if (notif.issueId) {
                 navigate(`/issues/${notif.issueId}`);
             }
         }

@@ -182,6 +182,13 @@ const AdminUsers = () => {
                             Live System
                         </div>
                         <Link
+                            to="/admin/reports"
+                            className="inline-flex items-center gap-1.5 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold rounded-xl transition border border-red-100 shadow-xs"
+                        >
+                            <Flag size={14} className="text-red-500" />
+                            <span>Reports</span>
+                        </Link>
+                        <Link
                             to="/admin/history"
                             className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-xl transition border border-indigo-100 shadow-xs"
                         >

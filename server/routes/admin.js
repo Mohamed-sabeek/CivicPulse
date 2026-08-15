@@ -21,6 +21,7 @@ router.get('/stats', [auth, admin], async (req, res) => {
         const pendingIssues = await Issue.countDocuments({ status: { $in: ['Open', 'Pending'] } });
         const inProgressIssues = await Issue.countDocuments({ status: 'In Progress' });
         const resolvedIssues = await Issue.countDocuments({ status: 'Resolved' });
+        const pendingReports = await CommentReport.countDocuments({ status: 'pending' });
 
         res.json({
             totalUsers: totalCitizens,
@@ -31,7 +32,8 @@ router.get('/stats', [auth, admin], async (req, res) => {
             openIssues: pendingIssues,
             pendingIssues,
             inProgressIssues,
-            resolvedIssues
+            resolvedIssues,
+            pendingReports
         });
     } catch (err) {
         console.error('Error fetching admin stats:', err.message);
@@ -51,6 +53,7 @@ router.get('/dashboard', [auth, admin], async (req, res) => {
         const pendingIssues = await Issue.countDocuments({ status: { $in: ['Open', 'Pending'] } });
         const inProgressIssues = await Issue.countDocuments({ status: 'In Progress' });
         const resolvedIssues = await Issue.countDocuments({ status: 'Resolved' });
+        const pendingReports = await CommentReport.countDocuments({ status: 'pending' });
 
         // Active issues: only non-resolved issues
         const activeIssues = await Issue.find({ status: { $ne: 'Resolved' } })
@@ -67,7 +70,8 @@ router.get('/dashboard', [auth, admin], async (req, res) => {
                 totalIssues,
                 pendingIssues,
                 inProgressIssues,
-                resolvedIssues
+                resolvedIssues,
+                pendingReports
             },
             activeIssues
         });
@@ -540,6 +544,76 @@ router.get('/users/:id', [auth, admin], async (req, res) => {
         });
     } catch (err) {
         console.error('Error fetching user details:', err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
+// @route   GET api/admin/comment-reports
+// @desc    Get paginated, filtered comment reports for Admin moderation
+// @access  Private/Admin
+router.get('/comment-reports', [auth, admin], async (req, res) => {
+    try {
+        const { status, search, sort, page = 1, limit = 10 } = req.query;
+
+        // Build filter
+        let filter = {};
+        if (status && status !== 'all') {
+            filter.status = status;
+        }
+
+        if (search && search.trim()) {
+            const searchRegex = new RegExp(search.trim(), 'i');
+            filter.$or = [
+                { reportedByName: searchRegex },
+                { reportedCommentAuthorName: searchRegex },
+                { commentText: searchRegex },
+                { issueTitle: searchRegex },
+                { reason: searchRegex },
+                { details: searchRegex }
+            ];
+        }
+
+        // Sorting
+        let sortOption = { createdAt: -1 };
+        if (sort === 'oldest') {
+            sortOption = { createdAt: 1 };
+        }
+
+        const pageNum = parseInt(page, 10) || 1;
+        const limitNum = parseInt(limit, 10) || 10;
+        const skip = (pageNum - 1) * limitNum;
+
+        const reports = await CommentReport.find(filter)
+            .populate('reportedBy', 'name email status')
+            .populate('reportedCommentAuthorId', 'name email status')
+            .sort(sortOption)
+            .skip(skip)
+            .limit(limitNum)
+            .lean();
+
+        const totalFiltered = await CommentReport.countDocuments(filter);
+        const totalReports = await CommentReport.countDocuments();
+        const pendingCount = await CommentReport.countDocuments({ status: 'pending' });
+        const resolvedCount = await CommentReport.countDocuments({ status: 'resolved' });
+        const dismissedCount = await CommentReport.countDocuments({ status: 'dismissed' });
+
+        res.json({
+            reports,
+            stats: {
+                total: totalReports,
+                pending: pendingCount,
+                resolved: resolvedCount,
+                dismissed: dismissedCount
+            },
+            pagination: {
+                page: pageNum,
+                limit: limitNum,
+                totalPages: Math.ceil(totalFiltered / limitNum) || 1,
+                totalReports: totalFiltered
+            }
+        });
+    } catch (err) {
+        console.error('Error fetching admin comment reports:', err.message);
         res.status(500).send('Server Error');
     }
 });
