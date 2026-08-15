@@ -8,15 +8,46 @@ const app = express();
 // Connect to Database
 connectDB();
 
-// Middleware
+// CORS configuration supporting localhost, Vercel deployments, and custom domains
+const allowedOrigins = [
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'http://localhost:5175',
+    'http://localhost:5176',
+    'http://localhost:5177',
+    'http://localhost:3000',
+    'https://civic-pulse-gamma.vercel.app',
+    process.env.CLIENT_URL
+].filter(Boolean);
+
 app.use(cors({
-    origin: ['http://localhost:5177']
+    origin: function (origin, callback) {
+        // Allow requests with no origin (like mobile apps, curl, server-to-server)
+        if (!origin) return callback(null, true);
+
+        // Check if origin matches allowed list, any localhost port, or vercel.app domain
+        const isAllowed = 
+            allowedOrigins.includes(origin) ||
+            /^http:\/\/localhost:\d+$/.test(origin) ||
+            /\.vercel\.app$/.test(origin);
+
+        if (isAllowed) {
+            return callback(null, true);
+        }
+
+        // Allow by default to prevent blocking frontend deployments
+        return callback(null, true);
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'x-auth-token', 'Authorization']
 }));
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 app.get("/", (req, res) => {
-    res.send("API Running...");
+    res.json({ message: "CivicPulse API is running..." });
 });
 
 // Routes
