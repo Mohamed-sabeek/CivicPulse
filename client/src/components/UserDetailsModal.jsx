@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { 
     X, User, Mail, Phone, Calendar, Shield, AlertCircle, 
     CheckCircle2, Clock, ThumbsUp, MapPin, ExternalLink,
-    Activity, Ban, CheckCircle, AlertTriangle, History
+    Activity, Ban, CheckCircle, AlertTriangle, History, Flag, 
+    MessageSquare, ShieldAlert, Check
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import api from '../utils/api';
@@ -17,6 +18,9 @@ const UserDetailsModal = ({ userId, isOpen, onClose, onUserStatusUpdated }) => {
     const [moderationAction, setModerationAction] = useState('block'); // 'block' or 'unblock'
     const [blockReason, setBlockReason] = useState('');
     const [actionLoading, setActionLoading] = useState(false);
+
+    // Comment Report Status update loading state
+    const [reportUpdatingId, setReportUpdatingId] = useState(null);
 
     const fetchUserDetails = useCallback(async () => {
         if (!userId) return;
@@ -64,6 +68,19 @@ const UserDetailsModal = ({ userId, isOpen, onClose, onUserStatusUpdated }) => {
         }
     };
 
+    const handleUpdateReportStatus = async (reportId, newStatus) => {
+        setReportUpdatingId(reportId);
+        try {
+            await api.patch(`/admin/comment-reports/${reportId}/status`, { status: newStatus });
+            fetchUserDetails();
+        } catch (err) {
+            console.error('Failed to update report status:', err);
+            alert(err.response?.data?.msg || 'Failed to update report status.');
+        } finally {
+            setReportUpdatingId(null);
+        }
+    };
+
     if (!isOpen) return null;
 
     const user = userData?.user;
@@ -77,6 +94,8 @@ const UserDetailsModal = ({ userId, isOpen, onClose, onUserStatusUpdated }) => {
     };
     const issues = userData?.reportedIssues || [];
     const moderationLogs = userData?.moderationHistory || [];
+    const reportsByCitizen = userData?.commentsReportedByCitizen || [];
+    const reportsAgainstCitizen = userData?.commentsReportedAgainstCitizen || [];
 
     const getStatusBadge = (status) => {
         switch (status) {
@@ -101,6 +120,35 @@ const UserDetailsModal = ({ userId, isOpen, onClose, onUserStatusUpdated }) => {
         }
     };
 
+    const getReportStatusBadge = (status) => {
+        switch (status) {
+            case 'resolved':
+                return (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-100 text-emerald-800">
+                        <Check size={10} /> Resolved
+                    </span>
+                );
+            case 'dismissed':
+                return (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-gray-100 text-gray-600">
+                        Dismissed
+                    </span>
+                );
+            case 'reviewed':
+                return (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-blue-100 text-blue-800">
+                        Reviewed
+                    </span>
+                );
+            default:
+                return (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-100 text-amber-800 animate-pulse">
+                        Pending Review
+                    </span>
+                );
+        }
+    };
+
     return (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
             <div 
@@ -119,7 +167,7 @@ const UserDetailsModal = ({ userId, isOpen, onClose, onUserStatusUpdated }) => {
                         </div>
                         <div>
                             <h2 className="text-xl font-black text-gray-900 tracking-tight">Citizen Profile & Activity Record</h2>
-                            <p className="text-xs text-gray-500 font-medium">Participation metrics, historical issues, and account moderation</p>
+                            <p className="text-xs text-gray-500 font-medium">Participation metrics, historical issues, and discussion moderation</p>
                         </div>
                     </div>
                     <button
@@ -295,9 +343,9 @@ const UserDetailsModal = ({ userId, isOpen, onClose, onUserStatusUpdated }) => {
                                 </div>
 
                                 {issues.length === 0 ? (
-                                    <div className="text-center py-12 px-4 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
-                                        <div className="w-12 h-12 rounded-2xl bg-white text-gray-400 mx-auto flex items-center justify-center shadow-sm mb-3">
-                                            <AlertCircle size={24} />
+                                    <div className="text-center py-10 px-4 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+                                        <div className="w-10 h-10 rounded-2xl bg-white text-gray-400 mx-auto flex items-center justify-center shadow-sm mb-2">
+                                            <AlertCircle size={20} />
                                         </div>
                                         <h5 className="font-black text-gray-800 text-sm">No Issues Reported</h5>
                                         <p className="text-xs text-gray-500 mt-1 max-w-sm mx-auto">This citizen has not reported any community issues to CivicPulse yet.</p>
@@ -361,12 +409,185 @@ const UserDetailsModal = ({ userId, isOpen, onClose, onUserStatusUpdated }) => {
                                 )}
                             </div>
 
+                            {/* Section 1: Comments Reported By This Citizen */}
+                            <div>
+                                <div className="flex items-center justify-between mb-4">
+                                    <div className="flex items-center gap-2">
+                                        <Flag size={18} className="text-indigo-600" />
+                                        <h4 className="text-sm font-black text-gray-900 uppercase tracking-wider">Comments Reported By This Citizen</h4>
+                                    </div>
+                                    <span className="text-xs font-bold text-indigo-700 bg-indigo-50 px-3 py-1 rounded-full border border-indigo-100">
+                                        {reportsByCitizen.length} {reportsByCitizen.length === 1 ? 'Report' : 'Reports'}
+                                    </span>
+                                </div>
+
+                                {reportsByCitizen.length === 0 ? (
+                                    <div className="text-center py-8 px-4 bg-gray-50/70 rounded-2xl border border-dashed border-gray-200">
+                                        <p className="text-xs text-gray-400 font-bold">This citizen has not reported any comments.</p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {reportsByCitizen.map((rep) => (
+                                            <div key={rep._id} className="bg-white p-4 sm:p-5 rounded-2xl border border-gray-100 shadow-2xs hover:shadow-xs transition">
+                                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2 pb-2 border-b border-gray-50">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-xs font-black text-gray-900">
+                                                            👤 Author: {rep.reportedCommentAuthorName || 'Citizen'}
+                                                        </span>
+                                                        {getReportStatusBadge(rep.status)}
+                                                    </div>
+                                                    <span className="text-[11px] text-gray-400 font-medium">
+                                                        📅 Reported: {new Date(rep.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                                    </span>
+                                                </div>
+
+                                                <div className="bg-gray-50 p-3 rounded-xl border border-gray-200/60 mb-3">
+                                                    <p className="text-xs text-gray-700 font-medium italic">
+                                                        "{rep.commentText}"
+                                                    </p>
+                                                </div>
+
+                                                <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
+                                                    <div className="space-y-1">
+                                                        <p className="text-gray-600 font-semibold flex items-center gap-1.5">
+                                                            <MapPin size={13} className="text-gray-400" />
+                                                            <span>Issue: <span className="font-bold text-gray-900">{rep.issueTitle}</span></span>
+                                                        </p>
+                                                        <p className="text-red-600 font-bold flex items-center gap-1.5">
+                                                            <Flag size={13} />
+                                                            <span>Reason: {rep.reason}</span>
+                                                        </p>
+                                                        {rep.details && (
+                                                            <p className="text-gray-500 text-[11px]">
+                                                                <span className="font-bold">Details:</span> {rep.details}
+                                                            </p>
+                                                        )}
+                                                    </div>
+
+                                                    <Link
+                                                        to={`/issues/${rep.issueId}`}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-gray-50 hover:bg-indigo-50 text-gray-700 hover:text-indigo-600 text-xs font-bold rounded-xl transition border border-gray-200 shadow-2xs"
+                                                    >
+                                                        <span>View Discussion</span>
+                                                        <ExternalLink size={12} />
+                                                    </Link>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Section 2: Comments Reported Against This Citizen */}
+                            <div>
+                                <div className="flex items-center justify-between mb-4">
+                                    <div className="flex items-center gap-2">
+                                        <ShieldAlert size={18} className="text-red-600" />
+                                        <h4 className="text-sm font-black text-gray-900 uppercase tracking-wider">
+                                            Comments Reported Against {user.name}
+                                        </h4>
+                                    </div>
+                                    <span className={`text-xs font-bold px-3 py-1 rounded-full border ${
+                                        reportsAgainstCitizen.length > 0
+                                            ? 'text-red-700 bg-red-50 border-red-100'
+                                            : 'text-gray-500 bg-gray-100 border-gray-200'
+                                    }`}>
+                                        {reportsAgainstCitizen.length} {reportsAgainstCitizen.length === 1 ? 'Report' : 'Reports'}
+                                    </span>
+                                </div>
+
+                                {reportsAgainstCitizen.length === 0 ? (
+                                    <div className="text-center py-8 px-4 bg-emerald-50/40 rounded-2xl border border-dashed border-emerald-200">
+                                        <CheckCircle size={20} className="text-emerald-600 mx-auto mb-1.5" />
+                                        <p className="text-xs text-emerald-800 font-bold">Good Standing: No community reports against this citizen's comments.</p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {reportsAgainstCitizen.map((rep) => (
+                                            <div key={rep._id} className="bg-white p-4 sm:p-5 rounded-2xl border border-red-100 shadow-2xs hover:shadow-xs transition">
+                                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2 pb-2 border-b border-red-50">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-xs font-black text-red-700">
+                                                            🚩 Reported by: {rep.reportedByName || 'Citizen'}
+                                                        </span>
+                                                        {getReportStatusBadge(rep.status)}
+                                                    </div>
+                                                    <span className="text-[11px] text-gray-400 font-medium">
+                                                        📅 Reported: {new Date(rep.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                                    </span>
+                                                </div>
+
+                                                <div className="bg-red-50/50 p-3.5 rounded-xl border border-red-100 mb-3">
+                                                    <span className="text-[10px] font-bold text-red-600 uppercase tracking-wider block mb-1">Reported Comment:</span>
+                                                    <p className="text-xs text-gray-800 font-medium italic">
+                                                        "{rep.commentText}"
+                                                    </p>
+                                                </div>
+
+                                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                                                    <div className="space-y-1">
+                                                        <p className="text-gray-600 font-semibold flex items-center gap-1.5">
+                                                            <MapPin size={13} className="text-gray-400" />
+                                                            <span>Issue: <span className="font-bold text-gray-900">{rep.issueTitle}</span></span>
+                                                        </p>
+                                                        <p className="text-red-600 font-bold flex items-center gap-1.5">
+                                                            <Flag size={13} />
+                                                            <span>Report Reason: {rep.reason}</span>
+                                                        </p>
+                                                        {rep.details && (
+                                                            <p className="text-gray-500 text-[11px]">
+                                                                <span className="font-bold">Details:</span> {rep.details}
+                                                            </p>
+                                                        )}
+                                                    </div>
+
+                                                    <div className="flex items-center gap-2 pt-2 sm:pt-0">
+                                                        <Link
+                                                            to={`/issues/${rep.issueId}`}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 hover:bg-indigo-50 text-gray-700 hover:text-indigo-600 text-xs font-bold rounded-xl transition border border-gray-200 shadow-2xs"
+                                                        >
+                                                            <span>View Issue</span>
+                                                            <ExternalLink size={12} />
+                                                        </Link>
+
+                                                        {rep.status !== 'dismissed' && (
+                                                            <button
+                                                                onClick={() => handleUpdateReportStatus(rep._id, 'dismissed')}
+                                                                disabled={reportUpdatingId === rep._id}
+                                                                className="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-xl transition shadow-2xs"
+                                                            >
+                                                                Dismiss
+                                                            </button>
+                                                        )}
+
+                                                        {rep.status !== 'resolved' && (
+                                                            <button
+                                                                onClick={() => handleUpdateReportStatus(rep._id, 'resolved')}
+                                                                disabled={reportUpdatingId === rep._id}
+                                                                className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition shadow-2xs"
+                                                            >
+                                                                <Check size={12} />
+                                                                <span>Resolve</span>
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
                             {/* Moderation Audit History */}
                             {moderationLogs.length > 0 && (
                                 <div>
                                     <div className="flex items-center gap-2 mb-3">
                                         <History size={16} className="text-indigo-600" />
-                                        <h4 className="text-xs font-black text-gray-900 uppercase tracking-wider">Moderation History Log</h4>
+                                        <h4 className="text-xs font-black text-gray-900 uppercase tracking-wider">Account Moderation History</h4>
                                     </div>
                                     <div className="bg-gray-50 rounded-2xl p-4 border border-gray-200/60 divide-y divide-gray-200/60 text-xs">
                                         {moderationLogs.map((log, idx) => (

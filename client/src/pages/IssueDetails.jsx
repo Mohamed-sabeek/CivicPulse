@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { MapPin, ArrowUp, MessageSquare, Calendar, ChevronLeft, CheckCircle, Clock, Send, ThumbsUp, Share2, Lock, Check } from 'lucide-react';
+import { 
+    MapPin, ArrowUp, MessageSquare, Calendar, ChevronLeft, CheckCircle, 
+    Clock, Send, ThumbsUp, Share2, Lock, Check, Flag, MoreVertical, 
+    AlertTriangle, X, AlertCircle 
+} from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import DetailSkeleton from '../components/DetailSkeleton';
@@ -14,6 +18,18 @@ const IssueDetails = () => {
     const [user, setUser] = useState(null);
     const [newComment, setNewComment] = useState('');
     const [copiedToast, setCopiedToast] = useState(false);
+    const [activeDropdownCommentId, setActiveDropdownCommentId] = useState(null);
+
+    // Comment Report Modal State
+    const [reportModal, setReportModal] = useState({
+        isOpen: false,
+        comment: null,
+        reason: 'Harassment or abusive content',
+        details: '',
+        loading: false,
+        feedback: null // { type: 'success' | 'error', message: '' }
+    });
+
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -54,7 +70,7 @@ const IssueDetails = () => {
             setIssue(prev => ({ ...prev, comments: res.data }));
             setNewComment('');
         } catch (err) {
-            console.error(err);
+            console.error('Failed to post comment:', err);
         }
     };
 
@@ -68,79 +84,131 @@ const IssueDetails = () => {
             const res = await api.put(`/issues/${id}/vote`);
             setIssue(prev => ({ ...prev, upvotes: res.data }));
         } catch (err) {
-            console.error(err);
-        }
-    };
-
-    const copyToClipboard = async (text) => {
-        try {
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                await navigator.clipboard.writeText(text);
-            } else {
-                const textArea = document.createElement('textarea');
-                textArea.value = text;
-                textArea.style.position = 'fixed';
-                textArea.style.opacity = '0';
-                document.body.appendChild(textArea);
-                textArea.select();
-                document.execCommand('copy');
-                document.body.removeChild(textArea);
-            }
-            setCopiedToast(true);
-            setTimeout(() => {
-                setCopiedToast(false);
-            }, 3000);
-        } catch (err) {
-            console.error('Failed to copy issue link:', err);
+            console.error('Failed to upvote issue:', err);
         }
     };
 
     const handleShare = async () => {
-        if (!issue) return;
-        const currentUrl = window.location.href;
         const shareData = {
             title: `CivicPulse – ${issue.title}`,
-            text: issue.description ? `${issue.description.slice(0, 120)}...` : 'A civic issue reported through CivicPulse.',
-            url: currentUrl
+            text: issue.description ? (issue.description.slice(0, 120) + '...') : 'A civic issue reported through CivicPulse.',
+            url: window.location.href
         };
 
         if (navigator.share) {
             try {
                 await navigator.share(shareData);
             } catch (err) {
-                // If user aborts/cancels native dialog, do not show error or copy
                 if (err.name !== 'AbortError') {
-                    copyToClipboard(currentUrl);
+                    console.error('Error sharing via Web Share API:', err);
+                    copyToClipboard();
                 }
             }
         } else {
-            copyToClipboard(currentUrl);
+            copyToClipboard();
         }
     };
 
-    const getStatusStyles = (status) => {
-        switch (status) {
-            case 'Resolved': return 'bg-emerald-50 text-emerald-700 border-emerald-100';
-            case 'In Progress': return 'bg-blue-50 text-blue-700 border-blue-100';
-            default: return 'bg-amber-50 text-amber-700 border-amber-100';
+    const copyToClipboard = () => {
+        navigator.clipboard.writeText(window.location.href)
+            .then(() => {
+                setCopiedToast(true);
+                setTimeout(() => setCopiedToast(false), 3000);
+            })
+            .catch(err => {
+                console.error('Failed to copy link:', err);
+            });
+    };
+
+    const openReportModal = (comment) => {
+        setActiveDropdownCommentId(null);
+        if (!user) {
+            navigate('/login');
+            return;
+        }
+        setReportModal({
+            isOpen: true,
+            comment,
+            reason: 'Harassment or abusive content',
+            details: '',
+            loading: false,
+            feedback: null
+        });
+    };
+
+    const handleSubmitReport = async (e) => {
+        e.preventDefault();
+        if (!reportModal.comment) return;
+        setReportModal(prev => ({ ...prev, loading: true, feedback: null }));
+
+        try {
+            const res = await api.post(`/issues/${id}/comments/${reportModal.comment._id}/report`, {
+                reason: reportModal.reason,
+                details: reportModal.details
+            });
+            setReportModal(prev => ({
+                ...prev,
+                loading: false,
+                feedback: {
+                    type: 'success',
+                    message: res.data.msg || 'Comment report submitted successfully. An administrator will review it.'
+                }
+            }));
+            setTimeout(() => {
+                setReportModal({
+                    isOpen: false,
+                    comment: null,
+                    reason: 'Harassment or abusive content',
+                    details: '',
+                    loading: false,
+                    feedback: null
+                });
+            }, 2500);
+        } catch (err) {
+            setReportModal(prev => ({
+                ...prev,
+                loading: false,
+                feedback: {
+                    type: 'error',
+                    message: err.response?.data?.msg || 'Failed to submit report. Please try again.'
+                }
+            }));
         }
     };
 
     const getStatusIcon = (status) => {
         switch (status) {
-            case 'Resolved': return <CheckCircle size={16} className="mr-1.5" />;
-            case 'In Progress': return <Clock size={16} className="mr-1.5" />;
-            default: return <Clock size={16} className="mr-1.5" />;
+            case 'Resolved': return <CheckCircle className="mr-1.5" size={16} />;
+            case 'In Progress': return <Clock className="mr-1.5" size={16} />;
+            default: return <Clock className="mr-1.5" size={16} />;
         }
+    };
+
+    const getStatusStyles = (status) => {
+        switch (status) {
+            case 'Resolved': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+            case 'In Progress': return 'bg-blue-50 text-blue-700 border-blue-200';
+            default: return 'bg-amber-50 text-amber-700 border-amber-200';
+        }
+    };
+
+    const formatCommentDate = (dateString) => {
+        if (!dateString) return 'Just now';
+        const d = new Date(dateString);
+        return d.toLocaleDateString('en-GB', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
     };
 
     if (loading) {
         return (
             <div className="min-h-screen bg-gray-50 flex flex-col pt-24">
                 <Navbar />
-                <main className="flex-grow py-12 px-4 sm:px-6 lg:px-8">
-                    <DetailSkeleton />
-                </main>
+                <DetailSkeleton />
                 <Footer />
             </div>
         );
@@ -166,7 +234,7 @@ const IssueDetails = () => {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 flex flex-col pt-24">
+        <div className="min-h-screen bg-gray-50 flex flex-col pt-24 font-sans">
             <Navbar />
 
             <main className="flex-grow py-12 px-4 sm:px-6 lg:px-8">
@@ -288,30 +356,103 @@ const IssueDetails = () => {
                         </div>
                     </article>
 
-                    {/* Comments Section */}
-                    <div className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 p-10 sm:p-12">
-                        <div className="flex items-center justify-between mb-10">
-                            <h3 className="text-2xl font-black text-gray-900 tracking-tight">Discussion</h3>
-                            <span className="px-4 py-1.5 bg-gray-50 text-gray-500 text-xs font-black rounded-xl border border-gray-100">
-                                {issue.comments?.length || 0} TOTAL
+                    {/* Comments & Discussion Section */}
+                    <div className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 p-8 sm:p-12">
+                        <div className="flex items-center justify-between mb-8">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-2xl">
+                                    <MessageSquare size={22} />
+                                </div>
+                                <div>
+                                    <h3 className="text-2xl font-black text-gray-900 tracking-tight">Citizen Discussion</h3>
+                                    <p className="text-xs text-gray-400 font-medium">Community feedback and conversations</p>
+                                </div>
+                            </div>
+                            <span className="px-3.5 py-1.5 bg-gray-50 text-gray-600 text-xs font-black rounded-xl border border-gray-100">
+                                {issue.comments?.length || 0} Comments
                             </span>
                         </div>
 
-                        <div className="space-y-6 mb-12">
+                        {/* Comment Feed */}
+                        <div className="space-y-4 mb-10">
                             {issue.comments && issue.comments.length > 0 ? (
-                                issue.comments.map((comment, idx) => (
-                                    <div key={idx} className="bg-gray-50/50 p-6 rounded-3xl border border-gray-100 transition-all hover:bg-gray-50">
-                                        <p className="text-gray-700 font-medium leading-relaxed">{comment.text}</p>
-                                        <div className="flex items-center gap-2 mt-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                                            <Calendar size={12} />
-                                            {comment.createdAt ? new Date(comment.createdAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'Just now'}
+                                issue.comments.map((comment) => {
+                                    const authorName = comment.user?.name || (typeof comment.user === 'string' ? 'Citizen' : 'Citizen');
+                                    const authorInitial = authorName ? authorName.charAt(0).toUpperCase() : 'C';
+                                    const isAuthorAdmin = comment.user?.role === 'admin';
+
+                                    return (
+                                        <div 
+                                            key={comment._id} 
+                                            className="bg-gray-50/60 hover:bg-gray-50 p-5 sm:p-6 rounded-3xl border border-gray-100 transition-all group relative"
+                                        >
+                                            <div className="flex items-start justify-between gap-4">
+                                                {/* Author Avatar & Info */}
+                                                <div className="flex items-start gap-3.5 min-w-0">
+                                                    <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black text-sm text-white shadow-sm shrink-0 ${
+                                                        isAuthorAdmin
+                                                            ? 'bg-gradient-to-tr from-purple-600 to-indigo-600 shadow-purple-100'
+                                                            : 'bg-gradient-to-tr from-indigo-600 to-blue-500 shadow-indigo-100'
+                                                    }`}>
+                                                        {authorInitial}
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <div className="flex items-center gap-2 flex-wrap">
+                                                            <span className="font-black text-gray-900 text-sm">
+                                                                {authorName}
+                                                            </span>
+                                                            {isAuthorAdmin && (
+                                                                <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-[10px] font-black rounded-md">
+                                                                    Admin
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <div className="flex items-center gap-1.5 text-[11px] font-medium text-gray-400 mt-0.5">
+                                                            <Calendar size={12} className="text-gray-400" />
+                                                            <span>{formatCommentDate(comment.createdAt)}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Menu / Report Action */}
+                                                <div className="relative shrink-0">
+                                                    <button
+                                                        onClick={() => setActiveDropdownCommentId(activeDropdownCommentId === comment._id ? null : comment._id)}
+                                                        className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition"
+                                                        aria-label="Comment options"
+                                                        title="More options"
+                                                    >
+                                                        <MoreVertical size={16} />
+                                                    </button>
+
+                                                    {activeDropdownCommentId === comment._id && (
+                                                        <div className="absolute right-0 top-10 z-20 w-44 bg-white rounded-2xl shadow-xl border border-gray-100 p-1.5 animate-in fade-in zoom-in-95 duration-150">
+                                                            <button
+                                                                onClick={() => openReportModal(comment)}
+                                                                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50 rounded-xl transition text-left"
+                                                            >
+                                                                <Flag size={14} className="text-red-500" />
+                                                                <span>Report Comment</span>
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* Comment Text Body */}
+                                            <div className="mt-3.5 pl-0 sm:pl-13">
+                                                <p className="text-gray-700 text-sm font-medium leading-relaxed whitespace-pre-line">
+                                                    {comment.text}
+                                                </p>
+                                            </div>
                                         </div>
-                                    </div>
-                                ))
+                                    );
+                                })
                             ) : (
-                                <div className="text-center py-12 bg-gray-50/30 rounded-3xl border-2 border-dashed border-gray-100">
-                                    <MessageSquare size={48} className="mx-auto text-gray-200 mb-4" />
-                                    <p className="text-gray-400 font-bold uppercase tracking-widest text-xs">No conversation started yet</p>
+                                <div className="text-center py-12 bg-gray-50/40 rounded-3xl border-2 border-dashed border-gray-100">
+                                    <MessageSquare size={42} className="mx-auto text-gray-300 mb-3" />
+                                    <p className="text-gray-500 font-bold text-xs uppercase tracking-wider">No conversation started yet</p>
+                                    <p className="text-[11px] text-gray-400 mt-0.5">Be the first citizen to leave a comment!</p>
                                 </div>
                             )}
                         </div>
@@ -332,28 +473,33 @@ const IssueDetails = () => {
                         ) : user ? (
                             <div className="relative group">
                                 <textarea
-                                    rows="1"
-                                    placeholder="Add to the discussion..."
-                                    className="w-full bg-gray-50 border border-gray-100 rounded-3xl px-6 py-5 pr-16 focus:ring-2 focus:ring-indigo-500 focus:bg-white focus:outline-none transition-all shadow-sm font-medium resize-none overflow-hidden"
+                                    rows="2"
+                                    placeholder="Add your thoughts or updates to this civic discussion..."
+                                    className="w-full bg-gray-50 border border-gray-200/80 rounded-3xl px-6 py-4 pr-16 text-xs sm:text-sm font-medium text-gray-800 focus:ring-2 focus:ring-indigo-500 focus:bg-white focus:outline-none transition-all shadow-xs resize-none"
                                     value={newComment}
-                                    onChange={(e) => {
-                                        setNewComment(e.target.value);
-                                        e.target.style.height = 'auto';
-                                        e.target.style.height = e.target.scrollHeight + 'px';
+                                    onChange={(e) => setNewComment(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' && !e.shiftKey) {
+                                            e.preventDefault();
+                                            handleComment();
+                                        }
                                     }}
                                 />
                                 <button
                                     onClick={handleComment}
-                                    className="absolute right-3 bottom-3 bg-indigo-600 text-white p-3 rounded-2xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 active:scale-90 disabled:opacity-50 disabled:scale-100"
+                                    className="absolute right-3.5 bottom-3.5 bg-indigo-600 text-white p-3 rounded-2xl hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100 active:scale-90 disabled:opacity-40 disabled:scale-100"
                                     disabled={!newComment.trim()}
+                                    title="Post Comment"
+                                    aria-label="Post Comment"
                                 >
-                                    <Send size={20} />
+                                    <Send size={18} />
                                 </button>
                             </div>
                         ) : (
-                            <div className="bg-indigo-50 p-8 rounded-3xl text-center border border-indigo-100">
-                                <p className="text-indigo-900 font-bold mb-4">Want to share your thoughts?</p>
-                                <Link to="/login" className="inline-block px-8 py-3 bg-indigo-600 text-white rounded-2xl font-black text-sm tracking-widest uppercase hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 active:scale-95">
+                            <div className="bg-gradient-to-r from-indigo-50 via-purple-50 to-indigo-50 p-8 rounded-3xl text-center border border-indigo-100 shadow-2xs">
+                                <h4 className="text-indigo-900 font-black text-base mb-1">Join the Civic Discussion</h4>
+                                <p className="text-indigo-600/80 text-xs font-medium mb-5">Sign in to share your thoughts, updates, and community suggestions.</p>
+                                <Link to="/login" className="inline-block px-8 py-3 bg-indigo-600 text-white rounded-2xl font-black text-xs tracking-widest uppercase hover:bg-indigo-700 transition-all shadow-md shadow-indigo-200 active:scale-95">
                                     Login to Comment
                                 </Link>
                             </div>
@@ -361,7 +507,129 @@ const IssueDetails = () => {
                     </div>
                 </div>
             </main>
+
             <Footer />
+
+            {/* Report Comment Modal */}
+            {reportModal.isOpen && (
+                <div 
+                    className="fixed inset-0 z-60 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
+                    onClick={() => setReportModal(prev => ({ ...prev, isOpen: false }))}
+                >
+                    <div 
+                        className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-7 shadow-2xl border border-gray-100 space-y-5 animate-in zoom-in-95 duration-150"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        {/* Header */}
+                        <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center shrink-0">
+                                    <Flag size={20} />
+                                </div>
+                                <div>
+                                    <h4 className="text-lg font-black text-gray-900">Report this comment?</h4>
+                                    <p className="text-xs text-gray-500 font-medium">Help keep the CivicPulse community constructive and safe</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setReportModal(prev => ({ ...prev, isOpen: false }))}
+                                className="p-2 text-gray-400 hover:text-gray-700 rounded-xl hover:bg-gray-100 transition"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+
+                        {/* Quoted Comment Preview */}
+                        <div className="bg-gray-50 rounded-2xl p-4 border border-gray-200/70">
+                            <span className="text-[11px] font-bold text-indigo-600 uppercase tracking-wider block mb-1">
+                                {reportModal.comment?.user?.name || 'Citizen'}:
+                            </span>
+                            <p className="text-xs text-gray-700 font-medium italic line-clamp-3">
+                                "{reportModal.comment?.text}"
+                            </p>
+                        </div>
+
+                        {/* Feedback Alert */}
+                        {reportModal.feedback && (
+                            <div className={`p-3.5 rounded-2xl text-xs font-bold flex items-center gap-2 ${
+                                reportModal.feedback.type === 'success'
+                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                    : 'bg-red-50 text-red-700 border border-red-200'
+                            }`}>
+                                {reportModal.feedback.type === 'success' ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
+                                <span>{reportModal.feedback.message}</span>
+                            </div>
+                        )}
+
+                        <form onSubmit={handleSubmitReport} className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-black text-gray-700 uppercase tracking-wider mb-2">
+                                    Reason for Report <span className="text-red-500">*</span>
+                                </label>
+                                <div className="space-y-2">
+                                    {[
+                                        'Harassment or abusive content',
+                                        'Spam',
+                                        'Inappropriate content',
+                                        'Misleading information',
+                                        'Other'
+                                    ].map(reasonOption => (
+                                        <label 
+                                            key={reasonOption}
+                                            className={`flex items-center gap-3 p-3 rounded-2xl border text-xs font-bold cursor-pointer transition-all ${
+                                                reportModal.reason === reasonOption 
+                                                    ? 'bg-indigo-50/70 border-indigo-300 text-indigo-900 shadow-2xs' 
+                                                    : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+                                            }`}
+                                        >
+                                            <input
+                                                type="radio"
+                                                name="reportReason"
+                                                value={reasonOption}
+                                                checked={reportModal.reason === reasonOption}
+                                                onChange={(e) => setReportModal(prev => ({ ...prev, reason: e.target.value }))}
+                                                className="text-indigo-600 focus:ring-indigo-500"
+                                            />
+                                            <span>{reasonOption}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-black text-gray-700 uppercase tracking-wider mb-2">
+                                    Additional details (optional):
+                                </label>
+                                <textarea
+                                    rows={2}
+                                    value={reportModal.details}
+                                    onChange={(e) => setReportModal(prev => ({ ...prev, details: e.target.value }))}
+                                    placeholder="Explain why this comment should be reviewed by moderators..."
+                                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-2xl text-xs font-medium text-gray-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition resize-none"
+                                />
+                            </div>
+
+                            <div className="flex items-center justify-end gap-3 pt-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setReportModal(prev => ({ ...prev, isOpen: false }))}
+                                    disabled={reportModal.loading}
+                                    className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-xl transition"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={reportModal.loading}
+                                    className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition shadow-sm shadow-red-200 flex items-center gap-1.5"
+                                >
+                                    {reportModal.loading ? 'Submitting...' : 'Submit Report'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

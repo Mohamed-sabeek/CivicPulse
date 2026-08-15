@@ -7,6 +7,7 @@ const Issue = require('../models/Issue');
 const IssueHistory = require('../models/IssueHistory');
 const Notification = require('../models/Notification');
 const UserModerationHistory = require('../models/UserModerationHistory');
+const CommentReport = require('../models/CommentReport');
 
 // @route   GET api/admin/stats
 // @desc    Get system statistics
@@ -450,6 +451,16 @@ router.get('/users/:id', [auth, admin], async (req, res) => {
             .sort({ createdAt: -1 })
             .lean();
 
+        // Fetch comments reported by this citizen
+        const commentsReportedByCitizen = await CommentReport.find({ reportedBy: req.params.id })
+            .sort({ createdAt: -1 })
+            .lean();
+
+        // Fetch comments reported against this citizen
+        const commentsReportedAgainstCitizen = await CommentReport.find({ reportedCommentAuthorId: req.params.id })
+            .sort({ createdAt: -1 })
+            .lean();
+
         const isBlocked = user.status === 'blocked' || user.status === 'Suspended';
 
         res.json({
@@ -466,10 +477,43 @@ router.get('/users/:id', [auth, admin], async (req, res) => {
                 totalUpvotesReceived: totalUpvotes
             },
             reportedIssues: normalizedIssues,
-            moderationHistory
+            moderationHistory,
+            commentsReportedByCitizen,
+            commentsReportedAgainstCitizen
         });
     } catch (err) {
         console.error('Error fetching user details:', err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
+// @route   PATCH api/admin/comment-reports/:reportId/status
+// @desc    Update status of a comment report (reviewed / dismissed / resolved)
+// @access  Private/Admin
+router.patch('/comment-reports/:reportId/status', [auth, admin], async (req, res) => {
+    try {
+        const { status } = req.body;
+        if (!['pending', 'reviewed', 'dismissed', 'resolved'].includes(status)) {
+            return res.status(400).json({ msg: 'Invalid report status' });
+        }
+
+        const report = await CommentReport.findById(req.params.reportId);
+        if (!report) {
+            return res.status(404).json({ msg: 'Comment report not found' });
+        }
+
+        report.status = status;
+        report.moderatedBy = req.user._id || req.user.id;
+        report.moderatedByName = req.user.name || 'Admin';
+        report.moderatedAt = new Date();
+        await report.save();
+
+        res.json({
+            msg: `Report status updated to ${status}`,
+            report
+        });
+    } catch (err) {
+        console.error('Error updating comment report status:', err.message);
         res.status(500).send('Server Error');
     }
 });
