@@ -103,11 +103,11 @@ const Navbar = () => {
     return (
         <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
             scrolled 
-                ? 'bg-white/80 backdrop-blur-md border-b border-gray-200 py-2 shadow-lg' 
-                : 'bg-white border-b border-gray-100 py-4'
+                ? 'bg-white/90 backdrop-blur-md border-b border-gray-200 py-1.5 shadow-md' 
+                : 'bg-white border-b border-gray-100 py-2'
         }`}>
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex justify-between items-center h-12">
+                <div className="flex justify-between items-center min-h-[3.75rem]">
                     {/* Logo */}
                     <div className="flex items-center">
                         {token ? (
@@ -115,7 +115,7 @@ const Navbar = () => {
                                 <img 
                                     src={civicPulseLogo} 
                                     alt="CivicPulse" 
-                                    className="h-10 sm:h-11 w-auto object-contain rounded-xl"
+                                    className="h-14 sm:h-16 md:h-20 max-h-[4.5rem] w-auto object-contain transition-all duration-300"
                                 />
                             </div>
                         ) : (
@@ -123,7 +123,7 @@ const Navbar = () => {
                                 <img 
                                     src={civicPulseLogo} 
                                     alt="CivicPulse" 
-                                    className="h-10 sm:h-11 w-auto object-contain rounded-xl group-hover:scale-105 transition-transform duration-300"
+                                    className="h-14 sm:h-16 md:h-20 max-h-[4.5rem] w-auto object-contain group-hover:scale-105 transition-all duration-300"
                                 />
                             </Link>
                         )}
