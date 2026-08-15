@@ -93,7 +93,8 @@ const AdminDashboard = () => {
             icon: Users, 
             lightColor: 'bg-indigo-50', 
             textColor: 'text-indigo-600',
-            desc: 'Registered citizens'
+            desc: 'Registered citizens',
+            onClick: () => navigate('/admin/users')
         },
         { 
             title: 'Total Issues', 
@@ -101,7 +102,8 @@ const AdminDashboard = () => {
             icon: FileText, 
             lightColor: 'bg-purple-50', 
             textColor: 'text-purple-600',
-            desc: 'All community reports'
+            desc: 'All community reports',
+            onClick: () => navigate('/admin/history')
         },
         { 
             title: 'Pending Issues', 
@@ -125,7 +127,8 @@ const AdminDashboard = () => {
             icon: CheckCircle, 
             lightColor: 'bg-emerald-50', 
             textColor: 'text-emerald-600',
-            desc: 'Successfully fixed'
+            desc: 'Successfully fixed',
+            onClick: () => navigate('/admin/history?status=Resolved')
         },
     ];
 
@@ -154,6 +157,16 @@ const AdminDashboard = () => {
                         {/* Navigation actions */}
                         <div className="flex items-center gap-3">
                             <Link
+                                to="/admin/users"
+                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/50 text-gray-800 hover:text-indigo-600 rounded-2xl text-xs font-black uppercase tracking-wider shadow-sm transition-all active:scale-95"
+                            >
+                                <Users size={16} className="text-indigo-600" />
+                                <span>Users</span>
+                                <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-full text-[10px]">
+                                    {stats.totalUsers}
+                                </span>
+                            </Link>
+                            <Link
                                 to="/admin/history"
                                 className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/50 text-gray-800 hover:text-indigo-600 rounded-2xl text-xs font-black uppercase tracking-wider shadow-sm transition-all active:scale-95"
                             >
@@ -175,7 +188,8 @@ const AdminDashboard = () => {
                                 {analytics.map((item, index) => (
                                     <div 
                                         key={index} 
-                                        className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between"
+                                        onClick={item.onClick}
+                                        className={`bg-white rounded-3xl p-6 border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between ${item.onClick ? 'cursor-pointer hover:border-indigo-200 ring-indigo-500/10 hover:ring-4' : ''}`}
                                     >
                                         <div className="flex items-center justify-between gap-3 mb-4">
                                             <div className={`p-3.5 rounded-2xl ${item.lightColor}`}>

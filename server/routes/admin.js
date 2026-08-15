@@ -252,4 +252,218 @@ router.delete('/issues/:id', [auth, admin], async (req, res) => {
     }
 });
 
+// ==========================================
+// USER MANAGEMENT ENDPOINTS
+// ==========================================
+
+// @route   GET api/admin/users
+// @desc    Get paginated users with search, filtering, and civic metrics
+// @access  Private/Admin
+router.get('/users', [auth, admin], async (req, res) => {
+    try {
+        const page = parseInt(req.query.page, 10) || 1;
+        const limit = parseInt(req.query.limit, 10) || 10;
+        const search = req.query.search?.trim() || '';
+        const statusFilter = req.query.status || 'All';
+        const sortOption = req.query.sort || 'recent';
+
+        // Base user filter
+        let userFilter = {};
+        if (search) {
+            userFilter.$or = [
+                { name: { $regex: search, $options: 'i' } },
+                { email: { $regex: search, $options: 'i' } },
+                { phone: { $regex: search, $options: 'i' } }
+            ];
+        }
+
+        if (statusFilter && statusFilter !== 'All') {
+            userFilter.status = statusFilter;
+        }
+
+        // Summary Stats (independent of pagination/search)
+        const totalUsers = await User.countDocuments();
+        const activeUsers = await User.countDocuments({ status: { $ne: 'Suspended' } });
+        const distinctReporters = await Issue.distinct('createdBy');
+        const usersWithReports = distinctReporters ? distinctReporters.length : 0;
+        const totalIssuesReported = await Issue.countDocuments();
+
+        // Fetch users matching filter without passwords
+        let users = await User.find(userFilter)
+            .select('-password')
+            .sort({ createdAt: -1 })
+            .lean();
+
+        // Attach dynamic civic issue metrics for each user
+        const allIssues = await Issue.find().select('createdBy status upvotes').lean();
+
+        const userMetricsMap = {};
+        allIssues.forEach(issue => {
+            if (!issue.createdBy) return;
+            const creatorId = issue.createdBy.toString();
+            if (!userMetricsMap[creatorId]) {
+                userMetricsMap[creatorId] = {
+                    totalIssues: 0,
+                    pending: 0,
+                    inProgress: 0,
+                    resolved: 0,
+                    totalUpvotes: 0
+                };
+            }
+            userMetricsMap[creatorId].totalIssues += 1;
+            const normalizedStatus = (issue.status === 'Open' || issue.status === 'Pending') ? 'pending' :
+                                    issue.status === 'In Progress' ? 'inProgress' : 'resolved';
+            userMetricsMap[creatorId][normalizedStatus] += 1;
+            userMetricsMap[creatorId].totalUpvotes += (issue.upvotes ? issue.upvotes.length : 0);
+        });
+
+        users = users.map(user => {
+            const metrics = userMetricsMap[user._id.toString()] || {
+                totalIssues: 0,
+                pending: 0,
+                inProgress: 0,
+                resolved: 0,
+                totalUpvotes: 0
+            };
+            return {
+                ...user,
+                status: user.status || 'Active',
+                issuesCount: metrics.totalIssues,
+                pendingCount: metrics.pending,
+                inProgressCount: metrics.inProgress,
+                resolvedCount: metrics.resolved,
+                totalUpvotesReceived: metrics.totalUpvotes
+            };
+        });
+
+        // Sorting
+        if (sortOption === 'most_active') {
+            users.sort((a, b) => b.issuesCount - a.issuesCount);
+        } else if (sortOption === 'oldest') {
+            users.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+        } else if (sortOption === 'name') {
+            users.sort((a, b) => a.name.localeCompare(b.name));
+        } else {
+            // 'recent'
+            users.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        }
+
+        // Pagination
+        const totalFilteredUsers = users.length;
+        const totalPages = Math.ceil(totalFilteredUsers / limit) || 1;
+        const startIndex = (page - 1) * limit;
+        const paginatedUsers = users.slice(startIndex, startIndex + limit);
+
+        res.json({
+            users: paginatedUsers,
+            stats: {
+                totalUsers,
+                activeUsers,
+                usersWithReports,
+                totalIssuesReported
+            },
+            pagination: {
+                page,
+                limit,
+                totalUsers: totalFilteredUsers,
+                totalPages
+            }
+        });
+    } catch (err) {
+        console.error('Error fetching admin users:', err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
+// @route   GET api/admin/users/:id
+// @desc    Get complete user profile with civic activity and reported issues
+// @access  Private/Admin
+router.get('/users/:id', [auth, admin], async (req, res) => {
+    try {
+        const user = await User.findById(req.params.id).select('-password').lean();
+        if (!user) {
+            return res.status(404).json({ msg: 'User not found' });
+        }
+
+        const issues = await Issue.find({ createdBy: req.params.id })
+            .sort({ createdAt: -1 })
+            .lean();
+
+        let pendingCount = 0;
+        let inProgressCount = 0;
+        let resolvedCount = 0;
+        let totalUpvotes = 0;
+
+        const normalizedIssues = issues.map(iss => {
+            const isPending = iss.status === 'Open' || iss.status === 'Pending';
+            const isInProgress = iss.status === 'In Progress';
+            const isResolved = iss.status === 'Resolved';
+
+            if (isPending) pendingCount++;
+            else if (isInProgress) inProgressCount++;
+            else if (isResolved) resolvedCount++;
+
+            const voteCount = iss.upvotes ? iss.upvotes.length : 0;
+            totalUpvotes += voteCount;
+
+            return {
+                ...iss,
+                statusDisplay: isPending ? 'Pending' : iss.status,
+                upvoteCount: voteCount
+            };
+        });
+
+        res.json({
+            user: {
+                ...user,
+                status: user.status || 'Active'
+            },
+            civicActivity: {
+                totalIssues: issues.length,
+                pendingCount,
+                inProgressCount,
+                resolvedCount,
+                totalUpvotesReceived: totalUpvotes
+            },
+            reportedIssues: normalizedIssues
+        });
+    } catch (err) {
+        console.error('Error fetching user details:', err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
+// @route   PUT api/admin/users/:id/status
+// @desc    Update user account status (Active / Suspended)
+// @access  Private/Admin
+router.put('/users/:id/status', [auth, admin], async (req, res) => {
+    try {
+        const { status } = req.body;
+        if (!['Active', 'Suspended'].includes(status)) {
+            return res.status(400).json({ msg: 'Invalid status value' });
+        }
+
+        const user = await User.findById(req.params.id);
+        if (!user) {
+            return res.status(404).json({ msg: 'User not found' });
+        }
+
+        user.status = status;
+        await user.save();
+
+        res.json({
+            msg: `User status updated to ${status}`,
+            user: {
+                _id: user._id,
+                name: user.name,
+                email: user.email,
+                status: user.status
+            }
+        });
+    } catch (err) {
+        console.error('Error updating user status:', err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
 module.exports = router;

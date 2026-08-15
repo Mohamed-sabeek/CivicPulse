@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, X, Home, Info, AlertCircle, CheckCircle, LayoutDashboard, Settings, LogOut } from 'lucide-react';
+import { Menu, X, Home, Info, AlertCircle, CheckCircle, LayoutDashboard, Settings, LogOut, Users, FileText } from 'lucide-react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import NotificationBell from './NotificationBell';
 import civicPulseLogo from '../assets/civicpulse-logo.png';
@@ -167,7 +167,10 @@ const Navbar = () => {
                                 <>
                                     <NotificationBell />
                                     {isAdmin ? (
-                                        <NavLink to="/admin" icon={Settings}>Admin Panel</NavLink>
+                                        <>
+                                            <NavLink to="/admin" icon={Settings}>Admin</NavLink>
+                                            <NavLink to="/admin/users" icon={Users}>Users</NavLink>
+                                        </>
                                     ) : (
                                         <NavLink to="/dashboard" icon={LayoutDashboard}>Dashboard</NavLink>
                                     )}
@@ -251,9 +254,14 @@ const Navbar = () => {
                         {token ? (
                             <>
                                 {isAdmin ? (
-                                    <Link to="/admin" onClick={() => setIsOpen(false)} className="flex items-center gap-3 p-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all duration-300 ease-out active:scale-[0.98]">
-                                        <Settings size={20} /> Admin Dashboard
-                                    </Link>
+                                    <>
+                                        <Link to="/admin" onClick={() => setIsOpen(false)} className="flex items-center gap-3 p-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all duration-300 ease-out active:scale-[0.98]">
+                                            <Settings size={20} /> Admin Dashboard
+                                        </Link>
+                                        <Link to="/admin/users" onClick={() => setIsOpen(false)} className="flex items-center gap-3 p-4 bg-indigo-50 text-indigo-700 rounded-2xl font-bold shadow-sm hover:bg-indigo-100 transition-all duration-300 ease-out active:scale-[0.98]">
+                                            <Users size={20} /> User Management
+                                        </Link>
+                                    </>
                                 ) : (
                                     <Link to="/dashboard" onClick={() => setIsOpen(false)} className="flex items-center gap-3 p-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all duration-300 ease-out active:scale-[0.98]">
                                         <LayoutDashboard size={20} /> My Dashboard

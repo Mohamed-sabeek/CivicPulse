@@ -14,9 +14,17 @@ const UserSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
+    phone: {
+        type: String,
+    },
+    status: {
+        type: String,
+        enum: ['Active', 'Suspended'],
+        default: 'Active',
+    },
     role: {
         type: String,
-        enum: ['user', 'admin'],
+        enum: ['user', 'citizen', 'admin'],
         default: 'user',
     },
     createdAt: {
