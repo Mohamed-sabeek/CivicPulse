@@ -160,7 +160,7 @@ const AdminUsers = () => {
 
             <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-16">
                 {/* Header Navigation Breadcrumb */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+                <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 sm:gap-6 mb-8 pb-6 border-b border-gray-200">
                     <div>
                         <div className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
                             <Link to="/admin" className="hover:text-indigo-600 transition flex items-center gap-1">

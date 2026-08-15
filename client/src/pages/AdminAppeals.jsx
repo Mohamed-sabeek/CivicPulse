@@ -174,7 +174,7 @@ const AdminAppeals = () => {
                 <div className="max-w-7xl mx-auto space-y-6">
                     
                     {/* Header Banner & Navigation Tabs */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-gray-200">
+                    <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 sm:gap-6 pb-6 border-b border-gray-200">
                         <div>
                             <div className="flex items-center gap-2 mb-1">
                                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-50 text-red-700 border border-red-200 text-xs font-black uppercase tracking-wider">

@@ -86,7 +86,11 @@ const AdminNav = ({ counts }) => {
     };
 
     return (
-        <nav className="flex items-center gap-2 flex-wrap" aria-label="Admin Section Navigation">
+        <nav 
+            className="flex items-center gap-1.5 sm:gap-2 flex-nowrap shrink-0 overflow-x-auto max-w-full pb-1 sm:pb-0" 
+            aria-label="Admin Section Navigation"
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        >
             {navItems.map((item) => {
                 const active = isItemActive(item);
                 const IconComponent = item.icon;
@@ -96,21 +100,21 @@ const AdminNav = ({ counts }) => {
                     <Link
                         key={item.to}
                         to={item.to}
-                        className={`h-10 px-3.5 sm:px-4 rounded-2xl text-xs font-black uppercase tracking-wider transition-all duration-200 flex items-center gap-2 shrink-0 border active:scale-95 shadow-2xs ${
+                        className={`h-9 sm:h-10 px-3 sm:px-3.5 rounded-xl sm:rounded-2xl text-[11px] sm:text-xs font-black uppercase tracking-wider transition-all duration-200 flex items-center gap-1.5 sm:gap-2 shrink-0 border active:scale-95 shadow-2xs ${
                             active
                                 ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm shadow-indigo-200 scale-[1.02]'
                                 : 'bg-white text-gray-700 hover:text-indigo-600 hover:bg-indigo-50/50 border-gray-200 hover:border-indigo-200'
                         }`}
                     >
                         <IconComponent 
-                            size={16} 
+                            size={15} 
                             className={`shrink-0 ${active ? 'text-white' : 'text-gray-500'}`} 
                         />
                         <span className="whitespace-nowrap">{item.label}</span>
 
                         {showCount && (
                             <span 
-                                className={`px-2 py-0.5 rounded-full text-[10px] font-black shrink-0 transition-colors leading-none ${
+                                className={`px-1.5 py-0.5 rounded-full text-[10px] font-black shrink-0 transition-colors leading-none ${
                                     active
                                         ? 'bg-white/20 text-white'
                                         : item.countType === 'alert' && item.count > 0
