@@ -126,6 +126,11 @@ const IssueDetails = () => {
             navigate('/login');
             return;
         }
+        const commentAuthorId = comment?.user?._id || (typeof comment?.user === 'string' ? comment.user : null);
+        if (commentAuthorId && String(user._id || user.id) === String(commentAuthorId) && user.role !== 'admin') {
+            alert('You cannot report your own comment.');
+            return;
+        }
         setReportModal({
             isOpen: true,
             comment,
@@ -431,6 +436,9 @@ const IssueDetails = () => {
                                             const authorName = comment.user?.name || (typeof comment.user === 'string' ? 'Citizen' : 'Citizen');
                                             const authorInitial = authorName ? authorName.charAt(0).toUpperCase() : 'C';
                                             const isAuthorAdmin = comment.user?.role === 'admin';
+                                            const commentAuthorId = comment.user?._id || (typeof comment.user === 'string' ? comment.user : null);
+                                            const isOwnComment = Boolean(user && commentAuthorId && (String(user._id || user.id) === String(commentAuthorId)));
+                                            const canReport = !isOwnComment || user?.role === 'admin';
 
                                             return (
                                                 <div 
@@ -465,29 +473,31 @@ const IssueDetails = () => {
                                                             </div>
                                                         </div>
 
-                                                        {/* Action Menu (⋮) for Comment Reporting */}
-                                                        <div className="relative shrink-0">
-                                                            <button
-                                                                onClick={() => setActiveDropdownCommentId(activeDropdownCommentId === comment._id ? null : comment._id)}
-                                                                className="p-1 text-gray-400 hover:text-gray-700 hover:bg-gray-200/60 rounded-md transition"
-                                                                aria-label="Comment options"
-                                                                title="More options"
-                                                            >
-                                                                <MoreVertical size={14} />
-                                                            </button>
+                                                        {/* Action Menu (⋮) for Comment Reporting (Only shown if NOT own comment or if admin) */}
+                                                        {canReport && (
+                                                            <div className="relative shrink-0">
+                                                                <button
+                                                                    onClick={() => setActiveDropdownCommentId(activeDropdownCommentId === comment._id ? null : comment._id)}
+                                                                    className="p-1 text-gray-400 hover:text-gray-700 hover:bg-gray-200/60 rounded-md transition"
+                                                                    aria-label="Comment options"
+                                                                    title="More options"
+                                                                >
+                                                                    <MoreVertical size={14} />
+                                                                </button>
 
-                                                            {activeDropdownCommentId === comment._id && (
-                                                                <div className="absolute right-0 top-7 z-20 w-36 bg-white rounded-xl shadow-xl border border-gray-100 p-1 animate-in fade-in zoom-in-95 duration-150">
-                                                                    <button
-                                                                        onClick={() => openReportModal(comment)}
-                                                                        className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50 rounded-lg transition text-left"
-                                                                    >
-                                                                        <Flag size={12} className="text-red-500" />
-                                                                        <span>Report Comment</span>
-                                                                    </button>
-                                                                </div>
-                                                            )}
-                                                        </div>
+                                                                {activeDropdownCommentId === comment._id && (
+                                                                    <div className="absolute right-0 top-7 z-20 w-36 bg-white rounded-xl shadow-xl border border-gray-100 p-1 animate-in fade-in zoom-in-95 duration-150">
+                                                                        <button
+                                                                            onClick={() => openReportModal(comment)}
+                                                                            className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50 rounded-lg transition text-left"
+                                                                        >
+                                                                            <Flag size={12} className="text-red-500" />
+                                                                            <span>Report Comment</span>
+                                                                        </button>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        )}
                                                     </div>
 
                                                     {/* Comment Content */}

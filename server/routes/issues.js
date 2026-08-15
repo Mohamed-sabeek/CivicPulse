@@ -225,6 +225,12 @@ router.post('/:issueId/comments/:commentId/report', auth, async (req, res) => {
             return res.status(404).json({ msg: 'Comment not found' });
         }
 
+        // Security check: User cannot report their own comment
+        const commentAuthorId = comment.user?.toString();
+        if (commentAuthorId === req.user.id.toString()) {
+            return res.status(403).json({ msg: 'You cannot report your own comment.' });
+        }
+
         // Check for duplicate report by this user
         const existingReport = await CommentReport.findOne({
             commentId: req.params.commentId,
