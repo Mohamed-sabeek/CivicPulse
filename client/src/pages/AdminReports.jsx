@@ -16,7 +16,6 @@ const AdminReports = () => {
     const [searchParams, setSearchParams] = useSearchParams();
     
     const initialStatus = searchParams.get('status') || 'pending';
-    const focusReportId = searchParams.get('reportId');
 
     const [reports, setReports] = useState([]);
     const [stats, setStats] = useState({ total: 0, pending: 0, resolved: 0, dismissed: 0 });
@@ -62,14 +61,6 @@ const AdminReports = () => {
             setReports(res.data.reports || []);
             setStats(res.data.stats || { total: 0, pending: 0, resolved: 0, dismissed: 0 });
             setPagination(res.data.pagination || { totalPages: 1, totalReports: 0 });
-
-            // If focusReportId is provided in URL, auto-select it for inspection
-            if (focusReportId && res.data.reports) {
-                const found = res.data.reports.find(r => r._id === focusReportId);
-                if (found) {
-                    setInspectReport(found);
-                }
-            }
         } catch (err) {
             console.error('Error fetching admin comment reports:', err);
             if (err.response?.status === 401 || err.response?.status === 403) {
@@ -78,7 +69,7 @@ const AdminReports = () => {
         } finally {
             setLoading(false);
         }
-    }, [statusFilter, debouncedSearch, sortOption, page, focusReportId, navigate]);
+    }, [statusFilter, debouncedSearch, sortOption, page, navigate]);
 
     useEffect(() => {
         fetchReports();
@@ -88,6 +79,15 @@ const AdminReports = () => {
         setStatusFilter(newStatus);
         setPage(1);
         setSearchParams({ status: newStatus });
+    };
+
+    const handleCloseInspect = () => {
+        setInspectReport(null);
+        if (searchParams.has('reportId')) {
+            const newParams = new URLSearchParams(searchParams);
+            newParams.delete('reportId');
+            setSearchParams(newParams, { replace: true });
+        }
     };
 
     const handleConfirmModerationAction = async () => {
@@ -544,7 +544,7 @@ const AdminReports = () => {
             {inspectReport && (
                 <div 
                     className="fixed inset-0 z-60 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
-                    onClick={() => setInspectReport(null)}
+                    onClick={handleCloseInspect}
                 >
                     <div 
                         className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl border border-gray-100 space-y-6 max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-150"
@@ -561,7 +561,7 @@ const AdminReports = () => {
                                 </div>
                             </div>
                             <button
-                                onClick={() => setInspectReport(null)}
+                                onClick={handleCloseInspect}
                                 className="p-2 text-gray-400 hover:text-gray-700 rounded-xl hover:bg-gray-100 transition"
                             >
                                 <X size={20} />
@@ -668,7 +668,7 @@ const AdminReports = () => {
                                     </>
                                 ) : (
                                     <button
-                                        onClick={() => setInspectReport(null)}
+                                        onClick={handleCloseInspect}
                                         className="px-5 py-2 bg-gray-900 text-white text-xs font-bold rounded-xl hover:bg-gray-800 transition"
                                     >
                                         Done

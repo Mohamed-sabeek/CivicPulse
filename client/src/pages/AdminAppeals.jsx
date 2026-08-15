@@ -17,8 +17,6 @@ const AdminAppeals = () => {
     const [searchParams, setSearchParams] = useSearchParams();
     
     const initialStatus = searchParams.get('status') || 'pending';
-    const focusAppealId = searchParams.get('appealId');
-
     const [appeals, setAppeals] = useState([]);
     const [stats, setStats] = useState({ total: 0, pending: 0, reviewed: 0, resolved: 0 });
     const [loading, setLoading] = useState(true);
@@ -29,7 +27,7 @@ const AdminAppeals = () => {
     const [page, setPage] = useState(1);
     const [pagination, setPagination] = useState({ totalPages: 1, totalAppeals: 0 });
 
-    // Review Modal State
+    // Review Modal State (in React component state only, no automatic reopen on refresh)
     const [activeAppeal, setActiveAppeal] = useState(null);
     const [appealDetailsLoading, setAppealDetailsLoading] = useState(false);
     const [appealUserContext, setAppealUserContext] = useState(null);
@@ -69,14 +67,6 @@ const AdminAppeals = () => {
             setAppeals(res.data.appeals || []);
             setStats(res.data.stats || { total: 0, pending: 0, reviewed: 0, resolved: 0 });
             setPagination(res.data.pagination || { totalPages: 1, totalAppeals: 0 });
-
-            // If focusAppealId is provided in URL, auto-open review modal
-            if (focusAppealId && res.data.appeals) {
-                const found = res.data.appeals.find(a => a._id === focusAppealId);
-                if (found) {
-                    handleOpenReview(found);
-                }
-            }
         } catch (err) {
             console.error('Error fetching admin appeals:', err);
             if (err.response?.status === 401 || err.response?.status === 403) {
@@ -85,7 +75,7 @@ const AdminAppeals = () => {
         } finally {
             setLoading(false);
         }
-    }, [statusFilter, debouncedSearch, sortOption, page, focusAppealId, navigate]);
+    }, [statusFilter, debouncedSearch, sortOption, page, navigate]);
 
     useEffect(() => {
         fetchAppeals();
@@ -112,6 +102,17 @@ const AdminAppeals = () => {
         }
     };
 
+    const handleCloseReview = () => {
+        setActiveAppeal(null);
+        setAppealUserContext(null);
+        setAdminNotes('');
+        if (searchParams.has('appealId')) {
+            const newParams = new URLSearchParams(searchParams);
+            newParams.delete('appealId');
+            setSearchParams(newParams, { replace: true });
+        }
+    };
+
     const handleExecuteDecision = async () => {
         if (!decisionModal.appeal || !decisionModal.targetDecision) return;
         setDecisionModal(prev => ({ ...prev, loading: true }));
@@ -121,7 +122,7 @@ const AdminAppeals = () => {
                 adminNotes: adminNotes.trim()
             });
             setDecisionModal({ isOpen: false, appeal: null, targetDecision: null, loading: false });
-            setActiveAppeal(null);
+            handleCloseReview();
             fetchAppeals();
         } catch (err) {
             console.error('Failed to execute appeal decision:', err);
@@ -412,7 +413,7 @@ const AdminAppeals = () => {
             {activeAppeal && (
                 <div 
                     className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
-                    onClick={() => setActiveAppeal(null)}
+                    onClick={handleCloseReview}
                 >
                     <div 
                         className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl border border-gray-100 space-y-6 max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-150"
@@ -434,7 +435,7 @@ const AdminAppeals = () => {
                                 </div>
                             </div>
                             <button
-                                onClick={() => setActiveAppeal(null)}
+                                onClick={handleCloseReview}
                                 className="p-2 text-gray-400 hover:text-gray-700 rounded-xl hover:bg-gray-100 transition"
                             >
                                 <X size={20} />
