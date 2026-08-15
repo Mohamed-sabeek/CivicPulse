@@ -3,7 +3,7 @@ import {
     X, User, Mail, Phone, Calendar, Shield, AlertCircle, 
     CheckCircle2, Clock, ThumbsUp, MapPin, 
     Activity, Ban, CheckCircle, AlertTriangle, History, Flag, 
-    MessageSquare, ShieldAlert, Check, ArrowRight
+    ShieldAlert, Check, ArrowRight
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../utils/api';
@@ -20,8 +20,14 @@ const UserDetailsModal = ({ userId, isOpen, onClose, onUserStatusUpdated }) => {
     const [blockReason, setBlockReason] = useState('');
     const [actionLoading, setActionLoading] = useState(false);
 
-    // Comment Report Status update loading state
-    const [reportUpdatingId, setReportUpdatingId] = useState(null);
+    // Comment Report Moderation Modal state
+    const [reportActionModal, setReportActionModal] = useState({
+        isOpen: false,
+        reportId: null,
+        targetStatus: null, // 'dismissed' | 'resolved'
+        reportText: '',
+        loading: false
+    });
 
     const fetchUserDetails = useCallback(async () => {
         if (!userId) return;
@@ -69,16 +75,25 @@ const UserDetailsModal = ({ userId, isOpen, onClose, onUserStatusUpdated }) => {
         }
     };
 
-    const handleUpdateReportStatus = async (reportId, newStatus) => {
-        setReportUpdatingId(reportId);
+    const handleConfirmReportAction = async () => {
+        if (!reportActionModal.reportId || !reportActionModal.targetStatus) return;
+        setReportActionModal(prev => ({ ...prev, loading: true }));
         try {
-            await api.patch(`/admin/comment-reports/${reportId}/status`, { status: newStatus });
+            await api.patch(`/admin/comment-reports/${reportActionModal.reportId}/status`, {
+                status: reportActionModal.targetStatus
+            });
+            setReportActionModal({
+                isOpen: false,
+                reportId: null,
+                targetStatus: null,
+                reportText: '',
+                loading: false
+            });
             fetchUserDetails();
         } catch (err) {
-            console.error('Failed to update report status:', err);
+            console.error('Failed to moderate comment report:', err);
             alert(err.response?.data?.msg || 'Failed to update report status.');
-        } finally {
-            setReportUpdatingId(null);
+            setReportActionModal(prev => ({ ...prev, loading: false }));
         }
     };
 
@@ -131,26 +146,20 @@ const UserDetailsModal = ({ userId, isOpen, onClose, onUserStatusUpdated }) => {
         switch (status) {
             case 'resolved':
                 return (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-100 text-emerald-800">
-                        <Check size={10} /> Resolved
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-200">
+                        <Check size={10} /> 🟢 RESOLVED
                     </span>
                 );
             case 'dismissed':
                 return (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-gray-100 text-gray-600">
-                        Dismissed
-                    </span>
-                );
-            case 'reviewed':
-                return (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-blue-100 text-blue-800">
-                        Reviewed
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-gray-100 text-gray-700 border border-gray-200">
+                        ⚪ DISMISSED
                     </span>
                 );
             default:
                 return (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-100 text-amber-800 animate-pulse">
-                        Pending Review
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-200 animate-pulse">
+                        🟡 PENDING REVIEW
                     </span>
                 );
         }
@@ -179,91 +188,81 @@ const UserDetailsModal = ({ userId, isOpen, onClose, onUserStatusUpdated }) => {
                     </div>
                     <button
                         onClick={onClose}
-                        className="p-2.5 text-gray-400 hover:text-gray-700 rounded-2xl hover:bg-gray-100 transition-all active:scale-95"
-                        aria-label="Close modal"
+                        className="p-2 text-gray-400 hover:text-gray-700 rounded-xl hover:bg-gray-100 transition active:scale-95"
                     >
                         <X size={20} />
                     </button>
                 </div>
 
                 {/* Body Content */}
-                <div className="flex-1 overflow-y-auto p-6 sm:p-8 space-y-8 custom-scrollbar">
+                <div className="flex-1 overflow-y-auto p-6 space-y-6">
                     {loading ? (
-                        <div className="py-16 flex flex-col items-center justify-center space-y-4">
-                            <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                        <div className="py-20 flex flex-col items-center justify-center text-center space-y-3">
+                            <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
                             <p className="text-sm font-bold text-gray-500">Loading citizen profile...</p>
                         </div>
                     ) : error ? (
-                        <div className="py-12 px-6 text-center space-y-4">
-                            <div className="w-12 h-12 rounded-2xl bg-red-50 text-red-500 mx-auto flex items-center justify-center">
-                                <AlertCircle size={24} />
-                            </div>
-                            <p className="text-gray-700 font-bold">{error}</p>
+                        <div className="py-12 px-4 bg-red-50 rounded-2xl border border-red-200 text-center space-y-2">
+                            <AlertCircle size={28} className="text-red-500 mx-auto" />
+                            <p className="text-sm font-bold text-red-800">{error}</p>
                             <button
                                 onClick={fetchUserDetails}
-                                className="px-5 py-2.5 bg-indigo-600 text-white text-xs font-bold rounded-xl hover:bg-indigo-700 transition shadow"
+                                className="px-4 py-1.5 bg-red-600 text-white text-xs font-bold rounded-xl hover:bg-red-700 transition"
                             >
                                 Try Again
                             </button>
                         </div>
                     ) : user ? (
                         <>
-                            {/* Profile Overview Card */}
-                            <div className={`rounded-3xl p-6 border shadow-sm relative overflow-hidden ${
-                                isBlocked 
-                                    ? 'bg-gradient-to-br from-red-50/50 via-white to-rose-50/30 border-red-100'
-                                    : 'bg-gradient-to-br from-indigo-50/50 via-white to-purple-50/30 border-indigo-100/60'
-                            }`}>
-                                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 relative z-10">
+                            {/* Section 1: User Identity Card */}
+                            <div className="bg-gradient-to-br from-gray-50 via-white to-gray-50/50 p-5 sm:p-6 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                     <div className="flex items-center gap-4">
-                                        <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-black shadow-lg ${
+                                        <div className={`w-16 h-16 rounded-2xl flex items-center justify-center font-black text-2xl shadow-inner ${
                                             isBlocked
-                                                ? 'bg-gradient-to-tr from-red-600 to-rose-500 text-white shadow-red-200'
-                                                : 'bg-gradient-to-tr from-indigo-600 to-blue-500 text-white shadow-indigo-200'
+                                                ? 'bg-red-100 text-red-700'
+                                                : 'bg-indigo-100 text-indigo-700'
                                         }`}>
-                                            {user.name ? user.name.charAt(0).toUpperCase() : 'C'}
+                                            {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
                                         </div>
                                         <div>
                                             <div className="flex items-center gap-2 flex-wrap">
-                                                <h3 className="text-2xl font-black text-gray-900 tracking-tight">{user.name}</h3>
-                                                <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border ${
-                                                    user.role === 'admin' 
-                                                        ? 'bg-purple-100 text-purple-700 border-purple-200' 
-                                                        : 'bg-indigo-100 text-indigo-700 border-indigo-200'
-                                                }`}>
-                                                    {user.role === 'admin' ? 'Administrator' : 'Citizen'}
-                                                </span>
-                                                <span className={`px-3 py-1 rounded-full text-xs font-black border flex items-center gap-1.5 ${
-                                                    isBlocked
-                                                        ? 'bg-red-50 text-red-700 border-red-200'
-                                                        : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                                }`}>
-                                                    <span className={`w-2 h-2 rounded-full ${isBlocked ? 'bg-red-500' : 'bg-emerald-500'}`} />
-                                                    {isBlocked ? 'Blocked' : 'Active'}
+                                                <h3 className="text-lg font-black text-gray-900">{user.name}</h3>
+                                                {isBlocked ? (
+                                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-black bg-red-100 text-red-700 border border-red-200">
+                                                        <Ban size={12} /> Blocked
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-black bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                        <CheckCircle size={12} /> Active
+                                                    </span>
+                                                )}
+                                                <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-md text-[10px] font-black uppercase tracking-wider">
+                                                    Citizen
                                                 </span>
                                             </div>
-                                            <div className="mt-2 flex flex-wrap items-center gap-4 text-xs font-medium text-gray-500">
-                                                <span className="flex items-center gap-1.5">
-                                                    <Mail size={14} className="text-gray-400" />
+                                            <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 mt-1.5 font-medium">
+                                                <span className="flex items-center gap-1">
+                                                    <Mail size={13} className="text-gray-400" />
                                                     {user.email}
                                                 </span>
                                                 {user.phone && (
-                                                    <span className="flex items-center gap-1.5">
-                                                        <Phone size={14} className="text-gray-400" />
+                                                    <span className="flex items-center gap-1">
+                                                        <Phone size={13} className="text-gray-400" />
                                                         {user.phone}
                                                     </span>
                                                 )}
-                                                <span className="flex items-center gap-1.5">
-                                                    <Calendar size={14} className="text-gray-400" />
+                                                <span className="flex items-center gap-1">
+                                                    <Calendar size={13} className="text-gray-400" />
                                                     Joined: {new Date(user.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
                                                 </span>
                                             </div>
                                         </div>
                                     </div>
 
-                                    {/* Moderation Block/Unblock Action */}
+                                    {/* Action Button: Block or Unblock */}
                                     {user.role !== 'admin' && (
-                                        <div>
+                                        <div className="flex items-center gap-2 shrink-0">
                                             {isBlocked ? (
                                                 <button
                                                     onClick={() => {
@@ -378,32 +377,29 @@ const UserDetailsModal = ({ userId, isOpen, onClose, onUserStatusUpdated }) => {
                                                     )}
                                                     <div className="min-w-0">
                                                         <div className="flex items-center gap-2 flex-wrap mb-1">
-                                                            <span className="px-2.5 py-0.5 bg-indigo-50 text-indigo-700 text-[10px] font-black rounded-lg border border-indigo-100">
-                                                                {iss.category}
+                                                            <span className="font-bold text-gray-900 text-sm group-hover:text-indigo-600 transition truncate">
+                                                                {iss.title}
                                                             </span>
                                                             {getStatusBadge(iss.statusDisplay || iss.status)}
                                                         </div>
-                                                        <h5 className="font-bold text-gray-900 text-sm truncate">{iss.title}</h5>
-                                                        <div className="flex items-center gap-3 text-xs text-gray-400 mt-1">
-                                                            <span className="flex items-center gap-1">
-                                                                <MapPin size={12} className="text-gray-400" />
+                                                        <div className="flex items-center gap-3 text-xs text-gray-400 font-medium">
+                                                            <span className="flex items-center gap-1 text-gray-600">
+                                                                <MapPin size={12} className="text-indigo-600" />
                                                                 {iss.location || 'Coimbatore'}
                                                             </span>
-                                                            <span className="flex items-center gap-1">
-                                                                <ThumbsUp size={12} className="text-indigo-500" />
-                                                                {iss.upvoteCount || 0} Supports
-                                                            </span>
-                                                            <span className="flex items-center gap-1">
-                                                                <Calendar size={12} />
-                                                                {new Date(iss.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                            <span>•</span>
+                                                            <span>{new Date(iss.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                                                            <span>•</span>
+                                                            <span className="flex items-center gap-1 font-bold text-indigo-600">
+                                                                <ThumbsUp size={11} /> {iss.upvoteCount || 0}
                                                             </span>
                                                         </div>
                                                     </div>
                                                 </div>
 
-                                                <button 
+                                                <button
                                                     onClick={() => handleNavigateToIssue(iss._id)}
-                                                    className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-gray-50 group-hover:bg-indigo-50 text-gray-600 group-hover:text-indigo-600 rounded-xl text-xs font-bold transition whitespace-nowrap"
+                                                    className="px-3.5 py-1.5 bg-gray-50 hover:bg-indigo-50 text-gray-700 hover:text-indigo-600 text-xs font-bold rounded-xl transition border border-gray-200 group-hover:border-indigo-200 flex items-center gap-1 shrink-0 shadow-2xs"
                                                 >
                                                     <span>View Issue</span>
                                                     <ArrowRight size={13} />
@@ -414,14 +410,16 @@ const UserDetailsModal = ({ userId, isOpen, onClose, onUserStatusUpdated }) => {
                                 )}
                             </div>
 
-                            {/* Section 1: Comments Reported By This Citizen */}
+                            {/* Section: Comments Reported By This Citizen */}
                             <div>
                                 <div className="flex items-center justify-between mb-4">
                                     <div className="flex items-center gap-2">
                                         <Flag size={18} className="text-indigo-600" />
-                                        <h4 className="text-sm font-black text-gray-900 uppercase tracking-wider">Comments Reported By This Citizen</h4>
+                                        <h4 className="text-sm font-black text-gray-900 uppercase tracking-wider">
+                                            Comments Reported By {user.name}
+                                        </h4>
                                     </div>
-                                    <span className="text-xs font-bold text-indigo-700 bg-indigo-50 px-3 py-1 rounded-full border border-indigo-100">
+                                    <span className="text-xs font-bold text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
                                         {reportsByCitizen.length} {reportsByCitizen.length === 1 ? 'Report' : 'Reports'}
                                     </span>
                                 </div>
@@ -469,13 +467,45 @@ const UserDetailsModal = ({ userId, isOpen, onClose, onUserStatusUpdated }) => {
                                                         )}
                                                     </div>
 
-                                                    <button
-                                                        onClick={() => handleNavigateToIssue(rep.issueId)}
-                                                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-gray-50 hover:bg-indigo-50 text-gray-700 hover:text-indigo-600 text-xs font-bold rounded-xl transition border border-gray-200 shadow-2xs"
-                                                    >
-                                                        <span>View Issue</span>
-                                                        <ArrowRight size={13} />
-                                                    </button>
+                                                    <div className="flex items-center gap-2 pt-2 sm:pt-0">
+                                                        <button
+                                                            onClick={() => handleNavigateToIssue(rep.issueId)}
+                                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 hover:bg-indigo-50 text-gray-700 hover:text-indigo-600 text-xs font-bold rounded-xl transition border border-gray-200 shadow-2xs"
+                                                        >
+                                                            <span>View Issue</span>
+                                                            <ArrowRight size={13} />
+                                                        </button>
+
+                                                        {rep.status === 'pending' && (
+                                                            <>
+                                                                <button
+                                                                    onClick={() => setReportActionModal({
+                                                                        isOpen: true,
+                                                                        reportId: rep._id,
+                                                                        targetStatus: 'dismissed',
+                                                                        reportText: rep.commentText,
+                                                                        loading: false
+                                                                    })}
+                                                                    className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-xl transition shadow-2xs"
+                                                                >
+                                                                    Dismiss
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => setReportActionModal({
+                                                                        isOpen: true,
+                                                                        reportId: rep._id,
+                                                                        targetStatus: 'resolved',
+                                                                        reportText: rep.commentText,
+                                                                        loading: false
+                                                                    })}
+                                                                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition shadow-2xs"
+                                                                >
+                                                                    <Check size={12} />
+                                                                    <span>Resolve</span>
+                                                                </button>
+                                                            </>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
                                         ))}
@@ -483,7 +513,7 @@ const UserDetailsModal = ({ userId, isOpen, onClose, onUserStatusUpdated }) => {
                                 )}
                             </div>
 
-                            {/* Section 2: Comments Reported Against This Citizen */}
+                            {/* Section: Comments Reported Against This Citizen */}
                             <div>
                                 <div className="flex items-center justify-between mb-4">
                                     <div className="flex items-center gap-2">
@@ -555,25 +585,34 @@ const UserDetailsModal = ({ userId, isOpen, onClose, onUserStatusUpdated }) => {
                                                             <ArrowRight size={13} />
                                                         </button>
 
-                                                        {rep.status !== 'dismissed' && (
-                                                            <button
-                                                                onClick={() => handleUpdateReportStatus(rep._id, 'dismissed')}
-                                                                disabled={reportUpdatingId === rep._id}
-                                                                className="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-xl transition shadow-2xs"
-                                                            >
-                                                                Dismiss
-                                                            </button>
-                                                        )}
-
-                                                        {rep.status !== 'resolved' && (
-                                                            <button
-                                                                onClick={() => handleUpdateReportStatus(rep._id, 'resolved')}
-                                                                disabled={reportUpdatingId === rep._id}
-                                                                className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition shadow-2xs"
-                                                            >
-                                                                <Check size={12} />
-                                                                <span>Resolve</span>
-                                                            </button>
+                                                        {rep.status === 'pending' && (
+                                                            <>
+                                                                <button
+                                                                    onClick={() => setReportActionModal({
+                                                                        isOpen: true,
+                                                                        reportId: rep._id,
+                                                                        targetStatus: 'dismissed',
+                                                                        reportText: rep.commentText,
+                                                                        loading: false
+                                                                    })}
+                                                                    className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-xl transition shadow-2xs"
+                                                                >
+                                                                    Dismiss
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => setReportActionModal({
+                                                                        isOpen: true,
+                                                                        reportId: rep._id,
+                                                                        targetStatus: 'resolved',
+                                                                        reportText: rep.commentText,
+                                                                        loading: false
+                                                                    })}
+                                                                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition shadow-2xs"
+                                                                >
+                                                                    <Check size={12} />
+                                                                    <span>Resolve</span>
+                                                                </button>
+                                                            </>
                                                         )}
                                                     </div>
                                                 </div>
@@ -627,7 +666,7 @@ const UserDetailsModal = ({ userId, isOpen, onClose, onUserStatusUpdated }) => {
                 </div>
             </div>
 
-            {/* Moderation Confirmation Modal */}
+            {/* Moderation (Block/Unblock) Confirmation Modal */}
             {moderationModalOpen && (
                 <div className="fixed inset-0 z-60 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
                     <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl border border-gray-100 space-y-5 animate-in zoom-in-95 duration-150">
@@ -650,44 +689,38 @@ const UserDetailsModal = ({ userId, isOpen, onClose, onUserStatusUpdated }) => {
                                 ? 'bg-amber-50/70 border border-amber-200/60 text-amber-800' 
                                 : 'bg-emerald-50/70 border border-emerald-200/60 text-emerald-800'
                         }`}>
-                            {moderationAction === 'block' ? (
-                                <>
-                                    <AlertTriangle size={18} className="text-amber-600 shrink-0 mt-0.5" />
-                                    <p>
-                                        This citizen will no longer be able to access or interact with CivicPulse. Their existing civic reports and activity history will be preserved.
-                                    </p>
-                                </>
-                            ) : (
-                                <>
-                                    <CheckCircle size={18} className="text-emerald-600 shrink-0 mt-0.5" />
-                                    <p>
-                                        This citizen will regain access to CivicPulse and will be able to report and interact with civic issues again.
-                                    </p>
-                                </>
-                            )}
+                            <AlertTriangle size={16} className="shrink-0 mt-0.5" />
+                            <div>
+                                {moderationAction === 'block' ? (
+                                    <>
+                                        This citizen will no longer be able to log in, report new issues, upvote, or submit comments. All past civic records remain preserved.
+                                    </>
+                                ) : (
+                                    <>
+                                        This citizen will regain full access to CivicPulse, allowing them to log in, report issues, and participate in discussions.
+                                    </>
+                                )}
+                            </div>
                         </div>
 
                         {moderationAction === 'block' && (
-                            <div>
-                                <label className="block text-xs font-black text-gray-700 uppercase tracking-wider mb-2">
-                                    Reason for blocking (optional):
+                            <div className="space-y-1.5">
+                                <label className="block text-xs font-black text-gray-700 uppercase tracking-wider">
+                                    Moderation Reason
                                 </label>
                                 <textarea
                                     rows={3}
                                     value={blockReason}
                                     onChange={(e) => setBlockReason(e.target.value)}
-                                    placeholder="Repeated spam reports / abusive comments / misuse of platform..."
-                                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium text-gray-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-red-500 transition resize-none"
+                                    placeholder="Explain why this account is being blocked (e.g. repeated spam, harassment)..."
+                                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-2xl text-xs font-medium text-gray-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-red-500 transition resize-none"
                                 />
                             </div>
                         )}
 
                         <div className="flex items-center justify-end gap-3 pt-2">
                             <button
-                                onClick={() => {
-                                    setModerationModalOpen(false);
-                                    setBlockReason('');
-                                }}
+                                onClick={() => setModerationModalOpen(false)}
                                 disabled={actionLoading}
                                 className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-xl transition"
                             >
@@ -696,13 +729,80 @@ const UserDetailsModal = ({ userId, isOpen, onClose, onUserStatusUpdated }) => {
                             <button
                                 onClick={handleConfirmModeration}
                                 disabled={actionLoading}
-                                className={`px-5 py-2.5 text-white text-xs font-bold rounded-xl transition shadow-sm flex items-center gap-1.5 ${
+                                className={`px-5 py-2.5 text-white text-xs font-bold rounded-xl transition shadow-md flex items-center gap-1.5 ${
                                     moderationAction === 'block' 
                                         ? 'bg-red-600 hover:bg-red-700 shadow-red-200' 
                                         : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200'
                                 }`}
                             >
-                                {actionLoading ? 'Processing...' : moderationAction === 'block' ? 'Block Account' : 'Unblock Account'}
+                                {actionLoading ? 'Processing...' : (moderationAction === 'block' ? 'Confirm Block' : 'Confirm Unblock')}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Comment Report Moderation (Dismiss / Resolve) Confirmation Modal */}
+            {reportActionModal.isOpen && (
+                <div className="fixed inset-0 z-60 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
+                    <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl border border-gray-100 space-y-5 animate-in zoom-in-95 duration-150">
+                        <div className="flex items-center gap-3">
+                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${
+                                reportActionModal.targetStatus === 'resolved' 
+                                    ? 'bg-emerald-50 text-emerald-600' 
+                                    : 'bg-gray-100 text-gray-600'
+                            }`}>
+                                {reportActionModal.targetStatus === 'resolved' ? <Check size={24} /> : <X size={24} />}
+                            </div>
+                            <div>
+                                <h4 className="text-lg font-black text-gray-900">
+                                    {reportActionModal.targetStatus === 'resolved' ? 'Resolve this report?' : 'Dismiss this report?'}
+                                </h4>
+                                <p className="text-xs text-gray-500 font-bold">This decision will be final.</p>
+                            </div>
+                        </div>
+
+                        {reportActionModal.reportText && (
+                            <div className="bg-gray-50 p-3.5 rounded-2xl border border-gray-200/70 text-xs">
+                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Reported Comment:</span>
+                                <p className="italic text-gray-700">"{reportActionModal.reportText}"</p>
+                            </div>
+                        )}
+
+                        <div className={`p-4 rounded-2xl text-xs leading-relaxed ${
+                            reportActionModal.targetStatus === 'resolved'
+                                ? 'bg-emerald-50 text-emerald-800 border border-emerald-100'
+                                : 'bg-gray-50 text-gray-700 border border-gray-200'
+                        }`}>
+                            {reportActionModal.targetStatus === 'resolved' ? (
+                                <p>
+                                    Marking this report as <strong>RESOLVED</strong> will notify the citizen who submitted the report. The decision is permanent and cannot be reversed.
+                                </p>
+                            ) : (
+                                <p>
+                                    Marking this report as <strong>DISMISSED</strong> will archive the report with no notification sent to the reporter. The decision is permanent.
+                                </p>
+                            )}
+                        </div>
+
+                        <div className="flex items-center justify-end gap-3 pt-2">
+                            <button
+                                onClick={() => setReportActionModal({ isOpen: false, reportId: null, targetStatus: null, reportText: '', loading: false })}
+                                disabled={reportActionModal.loading}
+                                className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-xl transition"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleConfirmReportAction}
+                                disabled={reportActionModal.loading}
+                                className={`px-5 py-2.5 text-white text-xs font-bold rounded-xl transition shadow-md flex items-center gap-1.5 ${
+                                    reportActionModal.targetStatus === 'resolved'
+                                        ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200'
+                                        : 'bg-gray-800 hover:bg-gray-900 shadow-gray-200'
+                                }`}
+                            >
+                                {reportActionModal.loading ? 'Saving...' : (reportActionModal.targetStatus === 'resolved' ? 'Confirm Resolve' : 'Confirm Dismiss')}
                             </button>
                         </div>
                     </div>

@@ -545,13 +545,13 @@ router.get('/users/:id', [auth, admin], async (req, res) => {
 });
 
 // @route   PATCH api/admin/comment-reports/:reportId/status
-// @desc    Update status of a comment report (reviewed / dismissed / resolved)
+// @desc    Update status of a comment report (dismissed / resolved) with strict one-way transition and reporter notification
 // @access  Private/Admin
 router.patch('/comment-reports/:reportId/status', [auth, admin], async (req, res) => {
     try {
         const { status } = req.body;
-        if (!['pending', 'reviewed', 'dismissed', 'resolved'].includes(status)) {
-            return res.status(400).json({ msg: 'Invalid report status' });
+        if (!['dismissed', 'resolved'].includes(status)) {
+            return res.status(400).json({ msg: 'Invalid report status. Only "dismissed" or "resolved" are allowed.' });
         }
 
         const report = await CommentReport.findById(req.params.reportId);
@@ -559,14 +559,43 @@ router.patch('/comment-reports/:reportId/status', [auth, admin], async (req, res
             return res.status(404).json({ msg: 'Comment report not found' });
         }
 
+        // Strict one-way state machine: Report can only be transitioned from pending
+        if (report.status === 'dismissed' || report.status === 'resolved') {
+            return res.status(400).json({ 
+                msg: `This report has already been finalized as "${report.status.toUpperCase()}" and cannot be modified.` 
+            });
+        }
+
+        const adminUser = await User.findById(req.user.id).select('name');
+        const adminName = adminUser?.name || 'Administrator';
+
         report.status = status;
-        report.moderatedBy = req.user._id || req.user.id;
-        report.moderatedByName = req.user.name || 'Admin';
+        report.moderatedBy = req.user.id;
+        report.moderatedByName = adminName;
         report.moderatedAt = new Date();
         await report.save();
 
+        // If report is marked RESOLVED, notify the user who submitted the report (report.reportedBy)
+        if (status === 'resolved' && report.reportedBy) {
+            try {
+                await Notification.create({
+                    type: 'REPORT_RESOLVED',
+                    recipientRole: 'citizen',
+                    userId: report.reportedBy,
+                    title: 'Report Resolved',
+                    message: 'Thank you for helping keep CivicPulse respectful. Your reported comment has been reviewed and the report has been resolved. We appreciate your concern and contribution to the community.',
+                    reportId: report._id,
+                    issueId: report.issueId,
+                    issueTitle: report.issueTitle,
+                    isRead: false
+                });
+            } catch (notifErr) {
+                console.error('Failed to notify report submitter on resolution:', notifErr);
+            }
+        }
+
         res.json({
-            msg: `Report status updated to ${status}`,
+            msg: `Report has been permanently marked as ${status.toUpperCase()}`,
             report
         });
     } catch (err) {

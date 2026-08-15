@@ -17,6 +17,7 @@ import AdminIssueHistory from './pages/AdminIssueHistory';
 import AdminUsers from './pages/AdminUsers';
 import AdminIssueDetails from './pages/AdminIssueDetails';
 import ResolvedIssues from './pages/ResolvedIssues';
+import Notifications from './pages/Notifications';
 import ProtectedRoute from './components/ProtectedRoute';
 
 const LandingPage = () => (
@@ -48,6 +49,14 @@ function App() {
         <Route path="/admin/users" element={<AdminUsers />} />
         <Route path="/admin/issues/:id" element={<AdminIssueDetails />} />
         <Route path="/resolved" element={<ResolvedIssues />} />
+        <Route
+          path="/notifications"
+          element={
+            <ProtectedRoute>
+              <Notifications />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/dashboard"
           element={

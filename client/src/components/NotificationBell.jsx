@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, CheckCheck, MapPin, Tag, Clock, AlertCircle, Sparkles, Inbox, Activity, CheckCircle2 } from 'lucide-react';
+import { 
+    Bell, CheckCheck, MapPin, Tag, Clock, AlertCircle, 
+    Sparkles, Inbox, Activity, CheckCircle2, Flag, ShieldAlert 
+} from 'lucide-react';
 import api from '../utils/api';
 
 const getUserFromToken = () => {
@@ -130,12 +133,20 @@ const NotificationBell = () => {
     };
 
     const getNotificationStyle = (notif) => {
-        if (notif.newStatus === 'Resolved' || notif.type === 'ISSUE_RESOLVED') {
+        if (notif.type === 'REPORT_RESOLVED' || notif.newStatus === 'Resolved' || notif.type === 'ISSUE_RESOLVED') {
             return {
                 icon: CheckCircle2,
                 iconBg: notif.isRead ? 'bg-emerald-100 text-emerald-600' : 'bg-emerald-600 text-white shadow-emerald-200',
                 border: notif.isRead ? 'border-transparent' : 'border-emerald-500 bg-emerald-50/40',
                 titleColor: 'text-emerald-700'
+            };
+        }
+        if (notif.type === 'NEW_COMMENT_REPORT' || notif.type === 'COMMENT_REPORT' || notif.type === 'comment_reported') {
+            return {
+                icon: ShieldAlert,
+                iconBg: notif.isRead ? 'bg-red-100 text-red-600' : 'bg-red-600 text-white shadow-red-200',
+                border: notif.isRead ? 'border-transparent' : 'border-red-500 bg-red-50/40',
+                titleColor: 'text-red-700'
             };
         }
         if (notif.newStatus === 'In Progress' || notif.type === 'ISSUE_IN_PROGRESS') {
@@ -220,7 +231,7 @@ const NotificationBell = () => {
                                 </div>
                                 <p className="text-sm font-bold text-gray-700">No notifications yet</p>
                                 <p className="text-xs text-gray-400 mt-1">
-                                    You will be alerted whenever the status of your reported issues changes.
+                                    You will be alerted whenever the status of your reported issues or reports change.
                                 </p>
                             </div>
                         ) : (
@@ -252,7 +263,7 @@ const NotificationBell = () => {
                                                 </span>
                                             </div>
 
-                                            {/* Status Update Details or Reported message */}
+                                            {/* Notification Message */}
                                             <p className="text-xs font-medium text-gray-700 leading-relaxed mt-1">
                                                 {notif.message}
                                             </p>
@@ -296,7 +307,7 @@ const NotificationBell = () => {
                     {/* Footer */}
                     <div className="px-4 py-2.5 bg-gray-50 border-t border-gray-100 text-center">
                         <span className="text-[11px] text-gray-400 font-semibold">
-                            Click any notification to review the issue details
+                            Click any notification to review details
                         </span>
                     </div>
                 </div>

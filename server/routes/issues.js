@@ -262,14 +262,16 @@ router.post('/:issueId/comments/:commentId/report', auth, async (req, res) => {
 
         // Create in-app admin web notification
         try {
+            const reporterName = reportingUser?.name || 'A citizen';
             await Notification.create({
-                type: 'comment_reported',
+                type: 'NEW_COMMENT_REPORT',
                 recipientRole: 'admin',
-                title: 'Comment Reported 🚩',
-                message: `${reportingUser?.name || 'A citizen'} reported a comment on "${issue.title}". Reason: ${reason}`,
+                title: 'New Comment Report',
+                message: `${reporterName} reported a comment for ${reason.toLowerCase()}.`,
+                reportId: newReport._id,
                 issueId: issue._id,
                 userId: req.user.id,
-                userName: reportingUser?.name || 'Citizen',
+                userName: reporterName,
                 issueTitle: issue.title,
                 category: issue.category || 'Discussion',
                 location: issue.location || 'CivicPulse',

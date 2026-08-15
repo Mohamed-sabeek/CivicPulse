@@ -3,7 +3,17 @@ const mongoose = require('mongoose');
 const NotificationSchema = new mongoose.Schema({
     type: {
         type: String,
-        enum: ['NEW_ISSUE', 'ISSUE_IN_PROGRESS', 'ISSUE_RESOLVED', 'new_issue', 'ISSUE_STATUS_UPDATE', 'COMMENT_REPORT'],
+        enum: [
+            'NEW_ISSUE', 
+            'ISSUE_IN_PROGRESS', 
+            'ISSUE_RESOLVED', 
+            'NEW_COMMENT_REPORT', 
+            'REPORT_RESOLVED', 
+            'new_issue', 
+            'ISSUE_STATUS_UPDATE', 
+            'COMMENT_REPORT', 
+            'comment_reported'
+        ],
         default: 'NEW_ISSUE',
     },
     recipientRole: {
@@ -18,7 +28,7 @@ const NotificationSchema = new mongoose.Schema({
     title: {
         type: String,
         required: true,
-        default: 'New Issue Reported'
+        default: 'Notification'
     },
     message: {
         type: String,
@@ -26,16 +36,18 @@ const NotificationSchema = new mongoose.Schema({
     },
     issueId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Issue',
-        required: true
+        ref: 'Issue'
+    },
+    reportId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'CommentReport'
     },
     userName: {
         type: String,
         default: 'Citizen'
     },
     issueTitle: {
-        type: String,
-        required: true
+        type: String
     },
     category: {
         type: String
