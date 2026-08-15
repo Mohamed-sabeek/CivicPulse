@@ -8,6 +8,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import UserDetailsModal from '../components/UserDetailsModal';
+import AdminNav from '../components/AdminNav';
 import api from '../utils/api';
 
 const AdminUsers = () => {
@@ -176,32 +177,14 @@ const AdminUsers = () => {
                         </p>
                     </div>
 
-                    <div className="flex items-center gap-3">
-                        <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-xl border border-emerald-200">
-                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                            Live System
-                        </div>
-                        <Link
-                            to="/admin/appeals"
-                            className="inline-flex items-center gap-1.5 px-4 py-2 bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs font-bold rounded-xl transition border border-amber-100 shadow-xs"
-                        >
-                            <Ban size={14} className="text-amber-600" />
-                            <span>Appeals</span>
-                        </Link>
-                        <Link
-                            to="/admin/reports"
-                            className="inline-flex items-center gap-1.5 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold rounded-xl transition border border-red-100 shadow-xs"
-                        >
-                            <Flag size={14} className="text-red-500" />
-                            <span>Reports</span>
-                        </Link>
-                        <Link
-                            to="/admin/history"
-                            className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-xl transition border border-indigo-100 shadow-xs"
-                        >
-                            Issue History 📜
-                        </Link>
-                    </div>
+                    <AdminNav 
+                        counts={{
+                            appeals: undefined,
+                            reports: undefined,
+                            citizens: stats.totalCitizens,
+                            history: undefined
+                        }}
+                    />
                 </div>
 
                 {/* 4 Summary Stat Cards */}

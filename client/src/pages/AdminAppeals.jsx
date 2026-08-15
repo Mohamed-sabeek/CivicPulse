@@ -10,6 +10,7 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import AdminSkeleton from '../components/AdminSkeleton';
 import UserDetailsModal from '../components/UserDetailsModal';
+import AdminNav from '../components/AdminNav';
 import api from '../utils/api';
 
 const AdminAppeals = () => {
@@ -189,29 +190,14 @@ const AdminAppeals = () => {
                         </div>
 
                         {/* Top Navigation Links */}
-                        <div className="flex items-center gap-2.5 flex-wrap">
-                            <Link
-                                to="/admin"
-                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/50 text-gray-800 hover:text-indigo-600 rounded-2xl text-xs font-black uppercase tracking-wider shadow-sm transition-all active:scale-95"
-                            >
-                                <LayoutDashboard size={15} className="text-indigo-600" />
-                                <span>Dashboard</span>
-                            </Link>
-                            <Link
-                                to="/admin/reports"
-                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 hover:border-red-300 hover:bg-red-50/50 text-gray-800 hover:text-red-600 rounded-2xl text-xs font-black uppercase tracking-wider shadow-sm transition-all active:scale-95"
-                            >
-                                <Flag size={15} className="text-red-500" />
-                                <span>Reports</span>
-                            </Link>
-                            <Link
-                                to="/admin/users"
-                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/50 text-gray-800 hover:text-indigo-600 rounded-2xl text-xs font-black uppercase tracking-wider shadow-sm transition-all active:scale-95"
-                            >
-                                <Users size={15} className="text-indigo-600" />
-                                <span>Citizens</span>
-                            </Link>
-                        </div>
+                        <AdminNav 
+                            counts={{
+                                appeals: stats.pending,
+                                reports: undefined,
+                                citizens: undefined,
+                                history: undefined
+                            }}
+                        />
                     </div>
 
                     {/* Filter & Metric Cards Header */}

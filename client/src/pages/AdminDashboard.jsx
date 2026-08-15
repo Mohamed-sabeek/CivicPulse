@@ -10,6 +10,7 @@ import {
 import AdminSkeleton from '../components/AdminSkeleton';
 import StatusDropdown from '../components/StatusDropdown';
 import IssueTimelineModal from '../components/IssueTimelineModal';
+import AdminNav from '../components/AdminNav';
 
 const AdminDashboard = () => {
     const [loading, setLoading] = useState(true);
@@ -192,60 +193,14 @@ const AdminDashboard = () => {
                         </div>
 
                         {/* Navigation actions */}
-                        <div className="flex items-center gap-3 flex-wrap">
-                            <Link
-                                to="/admin/appeals"
-                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 hover:border-amber-300 hover:bg-amber-50/50 text-gray-800 hover:text-amber-700 rounded-2xl text-xs font-black uppercase tracking-wider shadow-sm transition-all active:scale-95"
-                            >
-                                <UserX size={16} className="text-amber-600" />
-                                <span>Appeals</span>
-                                {stats.pendingAppeals > 0 ? (
-                                    <span className="px-2 py-0.5 bg-amber-500 text-white font-black rounded-full text-[10px] animate-pulse">
-                                        {stats.pendingAppeals}
-                                    </span>
-                                ) : (
-                                    <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full text-[10px]">
-                                        0
-                                    </span>
-                                )}
-                            </Link>
-                            <Link
-                                to="/admin/reports"
-                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 hover:border-red-300 hover:bg-red-50/50 text-gray-800 hover:text-red-600 rounded-2xl text-xs font-black uppercase tracking-wider shadow-sm transition-all active:scale-95"
-                            >
-                                <Flag size={16} className="text-red-500" />
-                                <span>Reports</span>
-                                {stats.pendingReports > 0 ? (
-                                    <span className="px-2 py-0.5 bg-red-500 text-white font-black rounded-full text-[10px] animate-pulse">
-                                        {stats.pendingReports}
-                                    </span>
-                                ) : (
-                                    <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full text-[10px]">
-                                        0
-                                    </span>
-                                )}
-                            </Link>
-                            <Link
-                                to="/admin/users"
-                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/50 text-gray-800 hover:text-indigo-600 rounded-2xl text-xs font-black uppercase tracking-wider shadow-sm transition-all active:scale-95"
-                            >
-                                <Users size={16} className="text-indigo-600" />
-                                <span>Citizens</span>
-                                <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-full text-[10px]">
-                                    {stats.totalCitizens !== undefined ? stats.totalCitizens : (stats.totalUsers || 0)}
-                                </span>
-                            </Link>
-                            <Link
-                                to="/admin/history"
-                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/50 text-gray-800 hover:text-indigo-600 rounded-2xl text-xs font-black uppercase tracking-wider shadow-sm transition-all active:scale-95"
-                            >
-                                <History size={16} className="text-indigo-600" />
-                                <span>Issue History</span>
-                                <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-full text-[10px]">
-                                    {stats.totalIssues}
-                                </span>
-                            </Link>
-                        </div>
+                        <AdminNav 
+                            counts={{
+                                appeals: stats.pendingAppeals || 0,
+                                reports: stats.pendingReports || 0,
+                                citizens: stats.totalCitizens !== undefined ? stats.totalCitizens : (stats.totalUsers || 0),
+                                history: stats.totalIssues || 0
+                            }}
+                        />
                     </div>
 
                     {loading ? (
